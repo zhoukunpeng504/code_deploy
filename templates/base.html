@@ -1,0 +1,80 @@
+﻿
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="shortcut icon" href="/static/favicon.ico" type="image/ico"/>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+
+    <title style="color: #ffffff">CodeDeploy应用管理系统</title>
+    <script src="/static/js/jquery-2.1.3.min.js"></script>
+    <script src="/static/js/bootstrap.min.js"></script>
+    <script src="/static/bootstrap-datetimepicker.js"></script>
+    <script src="/static/bootstrap-datetimepicker.zh-CN.js"></script>
+    <link href="/static/bootstrap.min.css" rel="stylesheet">
+    <link href="/static/style_dan.css" rel="stylesheet">
+    <link href="/static/bootstrap-datetimepicker.min.css" rel="stylesheet">
+    <link href="/static/jquery.multiselect.css" rel="stylesheet">
+    <script src="/static/jquery.form.js"></script>
+    <script src="/static/dialog.js"></script>
+
+    {% block style %}
+    {% endblock %}
+</head>
+<body data-spy="scroll" data-target="#myScrollspy" data-gct="1">
+
+<div class="navbar navbar-inverse navbar-fixed-top gct" >
+    <div class="container ">
+        <ul class="nav navbar-nav gct">
+            <li style="padding-right: 50px;color: #ffffff"> <a href="/" style="color: #ffffff"><b style="color: #fffff0">CodeDeploy应用发布</b></a></li>
+            <li class="dropdown ">
+                <a href="/pub/"  >应用发布</a>
+            </li>
+
+
+
+             <li class="dropdown gct">
+                <a href="" class="dropdown-toggle" data-toggle="dropdown">发布设置<b class="caret"></b></a>
+                <ul class="dropdown-menu">
+                    <li><a href="/reposerver_manage/">Git服务器</a></li>
+                    <li><a href="/server_manage/">应用服务器</a></li>
+                    <li><a href="/project_manage/">项目</a></li>
+                    <li><a href="/app_manage/">应用</a></li>
+                    <li><a href="/advantage_tools/">高级功能</a></li>
+
+                </ul>
+            </li>
+            <li>
+                <a href="/user_manage/" >用户管理</a>
+
+            </li>
+        </ul>
+        <div >
+            <p class="navbar-text navbar-right">欢迎：<b style="color: #ffffff">{{ user.username }}</b> / <a href="/changepwd/" class="navbar-link">修改密码</a>
+                / <a href="/admin/logout/?next=/" class="navbar-link">注销</a>
+            </p>
+        </div>
+        <!--img src="http://tj.yw.gongchang.com" style="width: 1px;"/-->
+    </div>
+</div>
+<div >
+{% block content %}
+
+{% endblock %}
+<!-- main.js -->
+<script src="/static/main.js"></script>
+<script>
+    var environ_config = {{ request.environ_config|safe }};
+    var environ_config_dict = {};
+    Object.entries(environ_config).forEach(function (item){
+      environ_config_dict[item[1].id] = item[1]
+    })
+</script>
+{% block script %}
+
+{% endblock %}
+</div>
+</body>
+</html>
+

@@ -1,0 +1,27 @@
+{% extends "base_pub.html" %}
+{% block content %}
+    <!-- Content -->
+    <div class="container main-container" style="min-height: 800px">
+        {#{% include "modaldialog.html" %}#}
+        <div class="row">
+            <div class="col-md-6">
+                <h3 class="hd">高级功能</h3>
+            </div>
+        </div>
+        {% if not request.user.is_superuser %}
+            <div class="row" style="padding-top: 10px">
+            <div class="alert alert-info">
+                当前用于无权限访问此页面！
+            </div>
+            </div>
+        {% else %}
+        <div class="row" style="padding-left: 20px">
+            <h4  >全局脚本</h4>
+            <div class="alert alert-info">
+                {{ scripts_path }}下的所有文件会自动发布到各应用目录中。提供了更方便了统一运维能力。 以便于对各应用进行复杂的逻辑处理。如：应用重启、应用注册等。<br/>
+                注意：此目录内的运维脚本 名称尽量避免和应用内的文件重复 以免应用内的代码被覆盖。建议命名方式为： cap_*.py 或者 cap_*.sh。
+            </div>
+        </div>
+    {% endif %}
+    </div>
+{% endblock %}

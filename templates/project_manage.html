@@ -1,0 +1,278 @@
+{% extends "base.html" %}
+
+{% block style %}
+    <style>
+        html, body {
+            height: 100%;
+        }
+
+        body {
+            background: #f7f7f7;
+        }
+
+        .main-container {
+            padding-top: 60px;
+            font-family: "microsoft yahei", arial, sans serif;
+            background: #fff;
+            min-height: 100%;
+            box-sizing: border-box;
+        }
+
+        .hd {
+            padding: 6px 0 6px 10px;
+            border-left: 2px solid #337ab7;
+            margin-bottom: 20px;
+        }
+    </style>
+{% endblock %}
+{% block content %}
+
+    <div class="container main-container" style="min-height: 800px">
+        <div class="row">
+            <div class="col-md-6">
+                <h3 class="hd">项目管理
+                </h3>
+            </div>
+            {% if request.user.is_superuser %}
+            <div class="col-md-1" style="float: right;padding-top: 24px;margin-right: 22px">
+                <button type="button" class="btn btn-info" onclick="add_project()">添加</button>
+            </div>
+            {% endif %}
+        </div>
+        {% if not request.user.is_superuser %}
+            <div class="row" style="padding-top: 10px">
+            <div class="alert alert-info">
+                当前用于无权限访问此页面！
+            </div>
+            </div>
+        {% else %}
+        <div class="row">
+            <div class="alert alert-info" style="margin-left: 20px;margin-right: 20px">
+                在本页面管理你的项目。
+            </div>
+        </div>
+        <table align="center" class="table table-bordered">
+            <colgroup>
+                <col style="width:10%;">
+                <col style="width:30%;">
+                <col style="width:20%;">
+                <col style="">
+
+
+            </colgroup>
+            <tr>
+                <th>ID</th>
+                <th>项目名</th>
+                <th>子应用数</th>
+                <th>操作</th>
+            </tr>
+            <tbody id="tbody-main">
+
+
+            </tbody>
+
+
+        </table>
+    {% endif %}
+
+
+    </div>
+
+{% endblock %}
+{% if not request.user.is_superuser %}
+{% block script %}
+    <script>
+
+
+      function add_project() {
+        var d = dialog({
+          title: "添加项目",
+          width: '450px',
+          ok: function () {
+            jQuery("#project_add").ajaxSubmit({
+              dataType: 'json',
+              success: function sss(data, textStatus, jqXHR, $form) {
+                var status = data['status'];
+                var message = data['message'];
+                if (status) {
+                  show_msg("提交成功");
+                  $form.resetForm();
+                  d.close().remove()
+                } else {
+                  show_msg(message);
+                }
+                init_list()
+                return false;
+              },
+              error: function (a) {
+                init_list()
+                show_msg("提交失败！无服务暂时无法连接")
+              }
+            })
+            return false
+          },
+          cancel: true,
+          cancelValue: "取消",
+          okValue: "确定",
+          content:
+              '<form class="form-horizontal" role="form" action="?action=add_project"  method="post" id="project_add">\n' +
+              '          <div class="form-group">\n' +
+              '      <label for="oldpwd" class="col-sm-4 control-label ">名称：</label>\n' +
+              '      <div class="col-sm-4">\n' +
+              '         <input type="text" class="form-control" id="name"  style="width:210px" name="name"\n' +
+              '            placeholder="请输入项目名称"  required>\n' +
+              '      </div>\n' +
+              '   </div>\n' +
+              '\n' +
+
+              '</form>'
+        });
+        d.showModal();
+
+      }
+
+      function init_list() {
+        jQuery.ajax(
+            {
+              type: 'POST',
+              url: '?action=get_project_list',
+              success: function (res) {
+                var html = '';
+                Object.entries(res).forEach(function (item) {
+                      var _index = item[0];
+                      var item_data = item[1];
+                      //console.log(item)
+                      var id = item_data['id'];
+                      var name = item_data['name'];
+                      var app_num = item_data['app_num'];
+
+
+                      //html += get_item_detail_html(item_data);
+                      var item_html = '<tr>\n' +
+                          '                    <td>' + id + '</td>\n' +
+                          '                    <td>' + name + '</td>\n' +
+                          '                    <td>' + app_num + '</td>\n' +
+
+                          '<td>                        <a href="#" style="padding-left: 5px" onclick="del_project(' + id + ')">删除</a>\n' +
+                          '                        <a href="#" style="padding-left: 5px" onclick="update_project(' + id + ')">修改</a>\n' +
+
+                          '                    </td>\n' +
+                          '\n' +
+                          '                </tr>'
+                      html += item_html;
+                    }
+                )
+                //console.log(html);
+                jQuery("#tbody-main").html(html);
+
+              },
+              dataType: 'json'
+            }
+        )
+
+
+      }
+
+      function update_project(id) {
+        jQuery.ajax(
+            {
+              type: 'POST',
+              data: {id: id},
+              dataType: 'json',
+              url: '?action=get_project',
+              success: function (res) {
+                var status = res['status']
+                var message = res['message']
+                if (status) {
+                  var name = res['data']['name'];
+
+
+                  var d = dialog({
+                    title: "修改项目",
+                    width: '450px',
+                    onshow:function (){
+                        jQuery("#name").val(name);
+
+                    },
+                    ok: function () {
+                      jQuery("#project_update").ajaxSubmit({
+                        dataType: 'json',
+                        success: function sss(data, textStatus, jqXHR, $form) {
+                          var status = data['status'];
+                          var message = data['message'];
+                          if (status) {
+                            show_msg("提交成功");
+                            $form.resetForm();
+                            d.close().remove()
+                          } else {
+                            show_msg(message);
+                          }
+                          init_list()
+                          return false;
+                        },
+                        error: function (a) {
+                          init_list()
+                          show_msg("提交失败！无服务暂时无法连接")
+                        }
+                      })
+                      return false
+                    },
+                    cancel: true,
+                    cancelValue: "取消",
+                    okValue: "确定",
+                    content:
+              '<form class="form-horizontal" role="form" action="?action=update_project"  method="post" id="project_update">\n' +
+                            '<input type="text" name="id" style="display: none" value="'+ id +' ">'+
+              '          <div class="form-group">\n' +
+              '      <label for="oldpwd" class="col-sm-4 control-label ">名称：</label>\n' +
+              '      <div class="col-sm-4">\n' +
+              '         <input type="text" class="form-control" id="name"  style="width:210px" name="name"\n' +
+              '            placeholder="请输入项目名"  required>\n' +
+              '      </div>\n' +
+              '   </div>\n' +
+              '\n' +
+              '</form>'
+                  });
+                  d.showModal();
+                } else {
+                  show_msg(message);
+                  init_list();
+                }
+              }
+
+            })
+
+
+      }
+
+      function del_project(id) {
+        function ok() {
+          jQuery.ajax(
+            {
+              type: 'POST',
+              data: {id: id},
+              dataType: 'json',
+              url: '?action=del_project',
+              success: function (res) {
+                var status = res['status']
+                var message = res['message']
+                show_msg(message);
+                init_list();
+              }
+
+            })
+        }
+        show_ask_msgbox('提醒','确定要删除该项目么？',ok)
+
+
+      }
+
+      $(function () {
+            init_list(); //初始化列表
+
+          }
+      )
+    </script>
+
+{% endblock %}
+{% endif %}

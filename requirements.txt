@@ -1,0 +1,8 @@
+Django == 2.2.14
+paramiko == 2.7.2
+python-gitlab == 2.10.0
+psutil
+mysqlclient
+cloudpickle
+uwsgi
+qiniu

@@ -1,0 +1,360 @@
+{% extends "base.html" %}
+
+{% block style %}
+    <style>
+        html, body {
+            height: 100%;
+        }
+
+        body {
+            background: #f7f7f7;
+        }
+
+        .main-container {
+            padding-top: 60px;
+            font-family: "microsoft yahei", arial, sans serif;
+            background: #fff;
+            min-height: 100%;
+            box-sizing: border-box;
+        }
+
+        .hd {
+            padding: 6px 0 6px 10px;
+            border-left: 2px solid #337ab7;
+            margin-bottom: 20px;
+        }
+    </style>
+{% endblock %}
+{% block content %}
+
+    <div class="container main-container" style="min-height: 800px">
+        <div class="row">
+            <div class="col-md-6">
+                <h3 class="hd">Git服务器管理
+                </h3>
+            </div>
+            {% if  request.user.is_superuser %}
+            <div class="col-md-1" style="float: right;padding-top: 24px;margin-right: 22px">
+                <button type="button" class="btn btn-info" onclick="add_reposerver()">添加</button>
+            </div>
+            {% endif %}
+        </div>
+        {% if not request.user.is_superuser %}
+            <div class="row" style="padding-top: 10px">
+            <div class="alert alert-info">
+                当前用于无权限访问此页面！
+            </div>
+            </div>
+        {% else %}
+        <div class="row">
+            <div class="alert alert-info" style="margin-left: 20px;margin-right: 20px">
+                在本页面添加你的代码仓库服务器。 比如：把自建的Gitlab添加上。 后续在创建应用的时候就可以直接选择 Gitlab下的代码仓库了。
+                目前支持：Gitlab Gitee
+            </div>
+        </div>
+        <table align="center" class="table table-bordered">
+            <colgroup>
+                <col style="width:10%;">
+                <col style="width:10%;">
+                <col style="width:10%;">
+                <col style="width:10%;">
+                <col style="width:10%;">
+            </colgroup>
+            <tr>
+                <th>ID</th>
+                <th>仓库名</th>
+                <th>类型</th>
+                <th>ServerURL</th>
+                <th>操作</th>
+            </tr>
+            <tbody id="tbody-main">
+
+
+            </tbody>
+
+
+        </table>
+        {% endif %}
+
+
+    </div>
+
+{% endblock %}
+{% if not request.user.is_superuser %}
+{% block script %}
+    <script>
+
+      function type_change(ele) {
+
+        if (jQuery(ele).val() == '2') {
+          jQuery("#server_url").val('https://gitee.com')
+          jQuery("#server_url").attr("readonly", 'readonly')
+        }
+        if (jQuery(ele).val() == '1') {
+          jQuery("#server_url").val('')
+          jQuery("#server_url").removeAttr("readonly")
+        }
+
+
+      }
+
+      function add_reposerver() {
+        var d = dialog({
+          title: "添加Git服务器",
+          width: '550px',
+          ok: function () {
+            jQuery("#reposerver_add").ajaxSubmit({
+              dataType: 'json',
+              success: function sss(data, textStatus, jqXHR, $form) {
+                var status = data['status'];
+                var message = data['message'];
+                if (status) {
+                  show_msg("提交成功");
+                  $form.resetForm();
+                  d.close().remove()
+                } else {
+                  show_msg(message);
+                }
+                init_list()
+                return false;
+              },
+              error: function (a) {
+                init_list()
+                show_msg("提交失败！无服务暂时无法连接")
+              }
+            })
+            return false
+          },
+          cancel: true,
+          cancelValue: "取消",
+          okValue: "确定",
+          content: '<div class="alert alert-info">自建Gitlab：可通过 点击自己头像->设置->访问令牌 来创建一个Token.（创建token时必选的权限如下 api、read_user、read_api、read_repository\n）' +
+              '<br/> Gitee:  可通过 点击自己头像->设置->私人令牌 来创建一个Token。(记得选中所有权限）' +
+              '</div>' +
+              '<form class="form-horizontal" role="form" action="?action=add_reposerver"  method="post" id="reposerver_add">\n' +
+              '          <div class="form-group">\n' +
+              '      <label for="oldpwd" class="col-sm-4 control-label ">名称：</label>\n' +
+              '      <div class="col-sm-4">\n' +
+              '         <input type="text" class="form-control" id="repo_name"  style="width:210px" name="repo_name"\n' +
+              '            placeholder="请输入一个便于识别的名称"  required>\n' +
+              '      </div>\n' +
+              '   </div>\n' +
+              '\n' +
+
+              '          <div class="form-group">\n' +
+              '      <label for="oldpwd" class="col-sm-4 control-label ">类型：</label>\n' +
+              '      <div class="col-sm-4">\n' +
+              '    <select  class="form-control" onchange="type_change(this)" name="repo_type">\n' +
+              '      <option value="1">自建Gitlab</option>\n' +
+              '      <option value="2"> Gitee</option>\n' +
+
+              '    </select>' +
+              '      </div>\n' +
+              '   </div>\n' +
+              '\n' +
+
+              '   <div class="form-group">\n' +
+              '      <label for="lastname" class="col-sm-4 control-label">服务器URL：</label>\n' +
+              '      <div class="col-sm-4">\n' +
+              '         <input type="text" class="form-control"  style="width:300px" id="server_url" name="server_url"\n' +
+              '            placeholder="请输入。如：http://192.168.240.131:7070" required>\n' +
+              '      </div>\n' +
+              '   </div>\n' +
+              '   <div class="form-group">\n' +
+              '      <label for="firstname" class="col-sm-4 control-label ">Token：</label>\n' +
+              '      <div class="col-sm-4">\n' +
+              '         <input type="text" class="form-control"  style="width:300px" name="token"\n' +
+              '            placeholder="请输入Token"  required>\n' +
+              '      </div>\n' +
+              '   </div>\n' +
+              '</form>'
+        });
+        d.showModal();
+
+      }
+
+      function init_list() {
+        jQuery.ajax(
+            {
+              type: 'POST',
+              url: '?action=get_reposerver_list',
+              success: function (res) {
+                var html = '';
+                Object.entries(res).forEach(function (item) {
+                      var _index = item[0];
+                      var item_data = item[1];
+                      //console.log(item)
+                      var id = item_data['id'];
+                      var repo_name = item_data['repo_name'];
+                      var repo_type = item_data['repo_type'];
+                      var repo_type_cn = repo_type == '1' ? '自建Gitlab' : 'Gitee';
+                      var addtime = item_data['addtime'];
+                      var server_url = item_data['server_url'];
+
+                      //html += get_item_detail_html(item_data);
+                      var item_html = '<tr>\n' +
+                          '                    <td>' + id + '</td>\n' +
+                          '                    <td>' + repo_name + '</td>\n' +
+                          '                    <td>' + repo_type_cn + '</td>\n' +
+                          '\n' +
+                          '                    <td> <label class="label label-primary">' + server_url + '</label></td>\n' +
+                          '                    <td>\n' +
+
+                          '                        <a href="#" style="padding-left: 5px" onclick="del_reposerver(' + id + ')">删除</a>\n' +
+                          '                        <a href="#" style="padding-left: 5px" onclick="update_reposerver(' + id + ')">修改</a>\n' +
+
+                          '                    </td>\n' +
+                          '\n' +
+                          '                </tr>'
+                      html += item_html;
+                    }
+                )
+                //console.log(html);
+                jQuery("#tbody-main").html(html);
+
+              },
+              dataType: 'json'
+            }
+        )
+
+
+      }
+
+      function update_reposerver(repo_id) {
+        jQuery.ajax(
+            {
+              type: 'POST',
+              data: {id: repo_id},
+              dataType: 'json',
+              url: '?action=get_reposerver',
+              success: function (res) {
+                var status = res['status']
+                var message = res['message']
+                if (status) {
+                  var repo_name = res['data']['repo_name'];
+                  var repo_type = res['data']['repo_type'];
+                  var server_url = res['data']['server_url'];
+                  var token = res['data']['token']
+                  var d = dialog({
+                    title: "修改Git服务器",
+                    width: '550px',
+                    onshow:function (){
+                        jQuery("#repo_name").val(repo_name);
+                        jQuery('#repo_type').val(String(repo_type));
+                        jQuery("#server_url").val(server_url);
+                        jQuery('#token').val(token);
+                        if (repo_type == 2){
+                          jQuery("#server_url").attr("readonly", 'readonly')
+                        }
+                    },
+                    ok: function () {
+                      jQuery("#reposerver_update").ajaxSubmit({
+                        dataType: 'json',
+                        success: function sss(data, textStatus, jqXHR, $form) {
+                          var status = data['status'];
+                          var message = data['message'];
+                          if (status) {
+                            show_msg("提交成功");
+                            $form.resetForm();
+                            d.close().remove()
+                          } else {
+                            show_msg(message);
+                          }
+                          init_list()
+                          return false;
+                        },
+                        error: function (a) {
+                          init_list()
+                          show_msg("提交失败！无服务暂时无法连接")
+                        }
+                      })
+                      return false
+                    },
+                    cancel: true,
+                    cancelValue: "取消",
+                    okValue: "确定",
+                    content: '<div class="alert alert-info">自建Gitlab：可通过 点击自己头像->设置->访问令牌 来创建一个Token.（创建token时必选的权限如下 api、read_user、read_api、read_repository\n）' +
+                        '<br/> Gitee:  可通过 点击自己头像->设置->私人令牌 来创建一个Token。(记得选中所有权限）' +
+                        '</div>' +
+                        '<form class="form-horizontal" role="form" action="?action=update_reposerver"  method="post" id="reposerver_update">\n' +
+                        '<input style="display: none" name="id" value="' + repo_id + '"> ' +
+                        '          <div class="form-group">\n' +
+                        '      <label for="oldpwd" class="col-sm-4 control-label ">名称：</label>\n' +
+                        '      <div class="col-sm-4">\n' +
+                        '         <input type="text" class="form-control" id="repo_name"  style="width:210px" name="repo_name"\n' +
+                        '            placeholder="请输入一个便于识别的名称"   required>\n' +
+                        '      </div>\n' +
+                        '   </div>\n' +
+                        '\n' +
+
+                        '          <div class="form-group">\n' +
+                        '      <label for="oldpwd" class="col-sm-4 control-label ">类型：</label>\n' +
+                        '      <div class="col-sm-4">\n' +
+                        '    <select  class="form-control" onchange="type_change(this)" id="repo_type" name="repo_type" >\n' +
+                        '      <option value="1">自建Gitlab</option>\n' +
+                        '      <option value="2"> Gitee</option>\n' +
+
+                        '    </select>' +
+                        '      </div>\n' +
+                        '   </div>\n' +
+                        '\n' +
+
+                        '   <div class="form-group">\n' +
+                        '      <label for="lastname" class="col-sm-4 control-label">服务器URL：</label>\n' +
+                        '      <div class="col-sm-4">\n' +
+                        '         <input type="text" class="form-control"  style="width:300px" id="server_url" name="server_url"\n' +
+                        '            placeholder="请输入。如：http://192.168.240.131:7070" required ">\n' +
+                        '      </div>\n' +
+                        '   </div>\n' +
+                        '   <div class="form-group">\n' +
+                        '      <label for="firstname" class="col-sm-4 control-label ">Token：</label>\n' +
+                        '      <div class="col-sm-4">\n' +
+                        '         <input type="text" class="form-control"  style="width:300px"  id="token" name="token"\n' +
+                        '            placeholder="请输入Token"  required>\n' +
+                        '      </div>\n' +
+                        '   </div>\n' +
+                        '</form>'
+                  });
+                  d.showModal();
+                } else {
+                  show_msg(message);
+                  init_list();
+                }
+              }
+
+            })
+
+
+      }
+
+      function del_reposerver(repo_id) {
+        function ok(){
+                  jQuery.ajax(
+            {
+              type: 'POST',
+              data: {repo_id: repo_id},
+              dataType: 'json',
+              url: '?action=del_reposerver',
+              success: function (res) {
+                var status = res['status']
+                var message = res['message']
+                show_msg(message);
+                init_list();
+              }
+
+            })
+        }
+
+        show_ask_msgbox('提醒','确定要删除该Git服务器么？',ok)
+
+      }
+
+      $(function () {
+            init_list(); //初始化列表
+
+          }
+      )
+    </script>
+
+{% endblock %}
+{% endif %}

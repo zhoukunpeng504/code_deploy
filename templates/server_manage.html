@@ -1,0 +1,399 @@
+{% extends "base.html" %}
+
+{% block style %}
+    <style>
+        html, body {
+            height: 100%;
+        }
+
+        body {
+            background: #f7f7f7;
+        }
+
+        .main-container {
+            padding-top: 60px;
+            font-family: "microsoft yahei", arial, sans serif;
+            background: #fff;
+            min-height: 100%;
+            box-sizing: border-box;
+        }
+
+        .hd {
+            padding: 6px 0 6px 10px;
+            border-left: 2px solid #337ab7;
+            margin-bottom: 20px;
+        }
+    </style>
+{% endblock %}
+{% block content %}
+
+    <div class="container main-container" style="min-height: 800px">
+        <div class="row">
+            <div class="col-md-6">
+                <h3 class="hd">应用服务器管理
+                </h3>
+            </div>
+            {% if request.user.is_superuser %}
+            <div class="col-md-1" style="float: right;padding-top: 24px;margin-right: 22px">
+                <button type="button" class="btn btn-info" onclick="add_server()">添加</button>
+            </div>
+            {% endif %}
+        </div>
+        {% if not request.user.is_superuser %}
+            <div class="row" style="padding-top: 10px">
+            <div class="alert alert-info">
+                当前用于无权限访问此页面！
+            </div>
+            </div>
+        {% else %}
+        <div class="row">
+            <div class="alert alert-info" style="margin-left: 20px;margin-right: 20px">
+                在本页面添加你的应用服务器。 比如：你的代码后续要运行在A B C机器上， 那么需要在本页面把服务器添加到系统。<br/>
+                如果密码为空，则会自动通过免密ssh方式登录  (登录成功与否与您的ssh配置有关)。
+            </div>
+        </div>
+        <table align="center" class="table table-bordered">
+            <colgroup>
+                <col style="width:10%;">
+                <col style="width:17%;">
+                <col style="width:20%;">
+                <col style="width:10%;">
+                <col style="width:10%;">
+                <col style="width:10%;">
+                <col style="">
+            </colgroup>
+            <tr>
+                <th>ID</th>
+                <th>服务器名</th>
+                <th>IP</th>
+                <th>SSH端口</th>
+                <th>用户</th>
+                <th>传输方式</th>
+                <th>操作</th>
+            </tr>
+            <tbody id="tbody-main">
+
+
+            </tbody>
+
+
+        </table>
+    {% endif %}
+
+
+    </div>
+
+{% endblock %}
+{% if not request.user.is_superuser %}
+{% block script %}
+    <script>
+
+
+      function add_server() {
+        var d = dialog({
+          title: "添加服务器",
+          width: '550px',
+          ok: function () {
+            jQuery("#server_add").ajaxSubmit({
+              dataType: 'json',
+              success: function sss(data, textStatus, jqXHR, $form) {
+                var status = data['status'];
+                var message = data['message'];
+                if (status) {
+                  show_msg("提交成功");
+                  $form.resetForm();
+                  d.close().remove()
+                } else {
+                  show_msg(message);
+                }
+                init_list()
+                return false;
+              },
+              error: function (a) {
+                init_list()
+                show_msg("提交失败！无服务暂时无法连接")
+              }
+            })
+            return false
+          },
+          cancel: true,
+          cancelValue: "取消",
+          okValue: "确定",
+          content: '<div class="alert alert-info">名称只是服务器的一个代号，可以根据您的实际情况填写。 ' +
+              '</div>' +
+              '<form class="form-horizontal" role="form" action="?action=add_server"  method="post" id="server_add">\n' +
+              '          <div class="form-group">\n' +
+              '      <label for="oldpwd" class="col-sm-4 control-label ">名称：</label>\n' +
+              '      <div class="col-sm-4">\n' +
+              '         <input type="text" class="form-control" id="name"  style="width:210px" name="name"\n' +
+              '            placeholder="请输入服务器名称"  required>\n' +
+              '      </div>\n' +
+              '   </div>\n' +
+              '\n' +
+
+              '          <div class="form-group">\n' +
+              '      <label for="oldpwd" class="col-sm-4 control-label ">IP：</label>\n' +
+              '      <div class="col-sm-4">\n' +
+              '         <input type="text" class="form-control" id="ip"  style="width:210px" name="ip"\n' +
+              '            placeholder="请输入服务器ip"  required>\n' +
+              '      </div>\n' +
+              '   </div>\n' +
+              '\n' +
+
+                   '   <div class="form-group">\n' +
+              '      <label for="lastname" class="col-sm-4 control-label">端口：</label>\n' +
+              '      <div class="col-sm-4">\n' +
+              '         <input type="number" class="form-control"  style="width:190px" id="ssh_port" name="ssh_port"\n' +
+              '            placeholder="请输入SSH端口,如：22"   required>\n' +
+              '      </div>\n' +
+              '   </div>\n' +
+
+                  '          <div class="form-group">\n' +
+              '      <label for="oldpwd" class="col-sm-4 control-label ">登录用户：</label>\n' +
+              '      <div class="col-sm-4">\n' +
+              '         <input type="text" class="form-control" id="user"  style="width:210px" name="user"\n' +
+              '            placeholder="请输入ssh用户"  required>\n' +
+              '      </div>\n' +
+              '   </div>\n' +
+              '\n' +
+
+                  '          <div class="form-group">\n' +
+              '      <label for="oldpwd" class="col-sm-4 control-label ">登录密码：</label>\n' +
+              '      <div class="col-sm-4">\n' +
+              '         <input type="text" class="form-control" id="password"  style="width:210px" name="password"\n' +
+              '            placeholder="请输入ssh密码"  >\n' +
+              '      </div>\n' +
+              '   </div>\n' +
+              '\n' +
+              '          <div class="form-group">\n' +
+              '      <label for="oldpwd" class="col-sm-4 control-label ">代码传输方式：</label>\n' +
+              '      <div class="col-sm-4"> ' +
+              '<select  name="code_mode" id="code_mode" class="form-control"  style="padding-left: 20px;width: 210px;"> '+
+                          '  <option value="0">SFTP</option> ' +
+                         '  <option value="1">七牛云中转</option> ' +
+                      '  </select>  ' +
+              '      </div>\n' +
+              '   </div>\n' +
+              '\n' +
+
+
+
+              '</form>'
+        });
+        d.showModal();
+
+      }
+
+      function init_list() {
+        jQuery.ajax(
+            {
+              type: 'POST',
+              url: '?action=get_server_list',
+              success: function (res) {
+                var html = '';
+                Object.entries(res).forEach(function (item) {
+                      var _index = item[0];
+                      var item_data = item[1];
+                      //console.log(item)
+                      var id = item_data['id'];
+                      var name = item_data['name'];
+                      var ip = item_data['ip'];
+                      var ssh_port = item_data['ssh_port'];
+                      var user = item_data['user'];
+                      var password = item_data['password'];
+                      var addtime = item_data['addtime'];
+                      var code_mode = item_data['code_mode'];
+
+                      //html += get_item_detail_html(item_data);
+                      var item_html = '<tr>\n' +
+                          '                    <td>' + id + '</td>\n' +
+                          '                    <td>' + name + '</td>\n' +
+                          '                    <td>' + ip + '</td>\n' +
+                              '                    <td>' + ssh_port + '</td>\n' +
+                                                        '                    <td> <label class="label label-primary">' + user + '</label></td>\n' +
+
+                          '\n' +
+ '                    <td>' + ( code_mode ==0? 'SFTP': '又拍云中转') + '</td>\n' +
+  '                    <td>\n' +
+                          '                        <a href="#" style="padding-left: 5px" onclick="del_server(' + id + ')">删除</a>\n' +
+                          '                        <a href="#" style="padding-left: 5px" onclick="update_server(' + id + ')">修改</a>\n' +
+
+                          '                    </td>\n' +
+                          '\n' +
+                          '                </tr>'
+                      html += item_html;
+                    }
+                )
+                //console.log(html);
+                jQuery("#tbody-main").html(html);
+
+              },
+              dataType: 'json'
+            }
+        )
+
+
+      }
+
+      function update_server(id) {
+        jQuery.ajax(
+            {
+              type: 'POST',
+              data: {id: id},
+              dataType: 'json',
+              url: '?action=get_server',
+              success: function (res) {
+                var status = res['status']
+                var message = res['message']
+                if (status) {
+                  var name = res['data']['name'];
+                  var ip = res['data']['ip'];
+                  var ssh_port = res['data']['ssh_port'];
+                  var user = res['data']['user'];
+                  var password = res['data']['password'];
+                  var code_mode = res['data']['code_mode'];
+
+                  var d = dialog({
+                    title: "修改服务器",
+                    width: '550px',
+                    onshow:function (){
+                        jQuery("#name").val(name);
+                        jQuery('#ip').val(ip);
+                        jQuery("#ssh_port").val(ssh_port);
+                        jQuery('#user').val(user);
+                        jQuery('#password').val(password);
+                        jQuery('#code_mode').val(code_mode);
+                    },
+                    ok: function () {
+                      jQuery("#server_update").ajaxSubmit({
+                        dataType: 'json',
+                        success: function sss(data, textStatus, jqXHR, $form) {
+                          var status = data['status'];
+                          var message = data['message'];
+                          if (status) {
+                            show_msg("提交成功");
+                            $form.resetForm();
+                            d.close().remove()
+                          } else {
+                            show_msg(message);
+                          }
+                          init_list()
+                          return false;
+                        },
+                        error: function (a) {
+                          init_list()
+                          show_msg("提交失败！无服务暂时无法连接")
+                        }
+                      })
+                      return false
+                    },
+                    cancel: true,
+                    cancelValue: "取消",
+                    okValue: "确定",
+                    content: '<div class="alert alert-info">名称只是服务器的一个代号，可以根据您的实际情况填写。 ' +
+              '</div>' +
+              '<form class="form-horizontal" role="form" action="?action=update_server"  method="post" id="server_update">\n' +
+                            '<input type="text" name="id" style="display: none" value="'+ id +' ">'+
+              '          <div class="form-group">\n' +
+              '      <label for="oldpwd" class="col-sm-4 control-label ">名称：</label>\n' +
+              '      <div class="col-sm-4">\n' +
+              '         <input type="text" class="form-control" id="name"  style="width:210px" name="name"\n' +
+              '            placeholder="请输入服务器名称"  required>\n' +
+              '      </div>\n' +
+              '   </div>\n' +
+              '\n' +
+
+              '          <div class="form-group">\n' +
+              '      <label for="oldpwd" class="col-sm-4 control-label ">IP：</label>\n' +
+              '      <div class="col-sm-4">\n' +
+              '         <input type="text" class="form-control" id="ip"  style="width:210px" name="ip"\n' +
+              '            placeholder="请输入服务器ip"  required>\n' +
+              '      </div>\n' +
+              '   </div>\n' +
+              '\n' +
+
+                   '   <div class="form-group">\n' +
+              '      <label for="lastname" class="col-sm-4 control-label">端口：</label>\n' +
+              '      <div class="col-sm-4">\n' +
+              '         <input type="number" class="form-control"  style="width:190px" id="ssh_port" name="ssh_port"\n' +
+              '            placeholder="请输入SSH端口,如：22"   required>\n' +
+              '      </div>\n' +
+              '   </div>\n' +
+
+                  '          <div class="form-group">\n' +
+              '      <label for="oldpwd" class="col-sm-4 control-label ">登录用户：</label>\n' +
+              '      <div class="col-sm-4">\n' +
+              '         <input type="text" class="form-control" id="user"  style="width:210px" name="user"\n' +
+              '            placeholder="请输入ssh用户"  required>\n' +
+              '      </div>\n' +
+              '   </div>\n' +
+              '\n' +
+
+                  '          <div class="form-group">\n' +
+              '      <label for="oldpwd" class="col-sm-4 control-label ">登录密码：</label>\n' +
+              '      <div class="col-sm-4">\n' +
+              '         <input type="text" class="form-control" id="password"  style="width:210px" name="password"\n' +
+              '            placeholder="请输入ssh密码"  >\n' +
+              '      </div>\n' +
+              '   </div>\n' +
+              '\n' +
+
+                        '          <div class="form-group">\n' +
+              '      <label for="oldpwd" class="col-sm-4 control-label ">代码传输方式：</label>\n' +
+              '      <div class="col-sm-4"> ' +
+              '<select  name="code_mode" id="code_mode" class="form-control"  style="padding-left: 20px;width: 210px;"> '+
+                          '  <option value="0">SFTP</option> ' +
+              '  <option value="1">七牛云中转</option> ' +
+                      '  </select>  ' +
+              '      </div>\n' +
+              '   </div>\n' +
+              '\n' +
+
+
+
+
+              '</form>'
+                  });
+                  d.showModal();
+                } else {
+                  show_msg(message);
+                  init_list();
+                }
+              }
+
+            })
+
+
+      }
+
+      function del_server(id) {
+        function ok() {
+          jQuery.ajax(
+            {
+              type: 'POST',
+              data: {id: id},
+              dataType: 'json',
+              url: '?action=del_server',
+              success: function (res) {
+                var status = res['status']
+                var message = res['message']
+                show_msg(message);
+                init_list();
+              }
+
+            })
+        }
+        show_ask_msgbox('提醒','确定要删除该服务器么？',ok)
+
+
+      }
+
+      $(function () {
+            init_list(); //初始化列表
+
+          }
+      )
+    </script>
+
+{% endblock %}
+{% endif %}

@@ -1,0 +1,156 @@
+{% extends "base_pub.html" %}
+{% block content %}
+    {% include "modaldialog.html" %}
+<div class="container main-container ">
+{% if request.path != "/pub/mypub/" %}
+<link href="/static/css/jquery-ui.css" rel="stylesheet" />
+<script src="/static/jquery/jquery-ui.min.js"></script>
+<script src="/static/jquery/jquery-ui-timepicker-addon.js"></script>
+
+<div class="row">
+    <div class="col-md-6">
+        <h3 class="hd">所有发布记录</h3>
+    </div>
+    <div class="col-md-2 col-md-offset-4">
+        <a href="/pub/mypub/" role="button" class="btn btn-primary" style="float: right;margin-top: 30px;">我的发布记录</a>
+    </div>
+</div>
+<div class="row" style="padding-left: 20px;padding-bottom: 5px">
+<form action="/pub/history/" method="get" class="form-inline">{% csrf_token %}
+    <div class="form-group">
+        <label>应用：</label>
+        <select name="proj_name"  class="form-control" style="width: 100px" id="projselect">
+            <option value="">项目</option>
+                               {% for p in cronproj %}
+                <option value="{{ p.name }}">{{ p.name }}</option>
+                {% endfor %}
+        </select>
+    </div>
+    <div class="form-group">
+        <select name="app_name" class="form-control" style="width: 120px">
+            <option value="">应用</option>
+                    {% for i in appinfo %}
+                <option value="{{ i.app }}" style="width: 140px" project="{{ i.proj }}">{{ i.app }}</option>
+                {% endfor %}
+        </select>
+
+    </div>
+    <div class="form-group">
+        <label>环境：</label>
+        <select name="environment" class="form-control">
+          <option value="">请选择</option>
+                    {% for p in environment_list %}
+                <option value="{{ p }}" style="width: 140px">{{ p }}</option>
+                {% endfor %}
+
+        </select>
+    </div>
+    <div class="form-group">
+        <label>用户：</label>
+        <select name="user_name" class="form-control" style="width: 100px">
+            <option value="">请选择</option>
+                    {% for p in user_list %}
+                <option value="{{ p }}" style="width: 140px">{{ p }}</option>
+                {% endfor %}
+        </select>
+    </div>
+    <div class="form-group">
+        <label >起始时间：</label>
+        <input type="text" name="start_time" id="id_start_time"  class="form-control" />
+    </div>
+    <div class="form-group">
+        <label>截止时间：</label>
+        <input type="text" name="end_time" id="id_end_time" class="form-control"/>
+    </div>
+    <div class="form-group">
+        <button type="submit" class="btn btn-primary btn-sm" style="width: 60px">查询</button>
+    </div>
+
+    </form>
+</div>
+
+
+<script type="text/javascript">
+    $('#id_start_time').datetimepicker();
+    $('#id_end_time').datetimepicker();
+</script>
+    {% else  %}
+
+    <div class="row">
+    <div class="col-md-6">
+        <h3 class="hd">我的发布记录</h3>
+    </div>
+</div>
+{% endif %}
+<table class="table table-bordered">
+    <tr>
+        <th>项目</th>
+        <th>应用</th>
+        <th>环境</th>
+        <th>操作</th>
+        <th>操作人</th>
+        <th>操作原因</th>
+        <th>状态</th>
+        <th>操作时间</th>
+        <th>审核信息</th>
+    </tr>
+{% for publog in page_obj %}
+
+    <tr>
+        <td>{{ publog.projectname }}</td>
+        <td>{{ publog.appname }}</td>
+        <td>{{ publog.environment }}</td>
+        <td><span class="text-success" style="color: #468847"> {% if publog.operate == 1 %}发布{{ publog.oldversion }} -> {{ publog.newversion }}
+                {% elif publog.operate == 2 %}回滚{{ publog.oldmeta }} -> {{ publog.newmeta }}
+                {% elif publog.operate == 3 %}初始化{% endif %}</span></td>
+        <td>{{ publog.name }}</td>
+        <td>{{ publog.get_reason }}</td>
+        <td>{{ publog.get_status }}{% if publog.get_stop_needed  and publog.operationperm %}(<a href="#" data-toggle="modal"  onclick="stopoperate(this.id)" id="{{ publog.id }}">强制结束</a>)
+            {% elif publog.get_vertify_needed and publog.name == request.user.username %}(<a href="#" data-toggle="modal" onclick="submitneed(this.id)" id="{{ publog.id }}">请求审核</a>){% endif %}
+        </td>
+        <td><a class="text-info" href="/pub/detail/?pid={{ publog.id }}"  style="color:#3a87ad" target="_blank" >{{ publog.operatetime|date:"Y-m-d H:i:s"  }}</a></td>
+        <td ><span class="text-success" style="color:#468847">{{ publog.vertifyinfo }}</span></td>
+    </tr>
+
+{% endfor %}
+</table>
+<div style="text-align: center">
+                 <ul class="pagination">
+              {% if page_obj %}
+              <li><a href="?{{ paginator_url }}&{{ page_mark }}=1">首页</a> </li>
+              {% if page_obj.has_previous %}
+                  <li><a title="上一页" href="?{{ paginator_url }}&{{ page_mark }}={{ page_obj.previous_page_number }}">&lt;&lt;</a> </li>
+              {% endif %}
+              {% for i in page_range %}
+                  <li
+                          {% ifequal i page_obj.number %}
+                          class="active"
+                          {% endifequal %}><a href="?{{ paginator_url }}&{{ page_mark }}={{ i }}" >{{ i }}</a></li>
+              {% endfor %}
+              {% if page_obj.has_next %}
+              <li><a title="下一页" href="?{{ paginator_url }}&{{ page_mark }}={{ page_obj.next_page_number }}">&gt;&gt;</a> </li>
+
+              {% endif %}
+              <li><a href="?{{ paginator_url }}&{{ page_mark }}={{ page_obj.paginator.num_pages }}">尾页</a> </li>
+              {% endif %}
+
+        </ul>
+</div>
+</div>
+    <script type="application/javascript">
+    var search_config={{ configinfo|safe }};
+    for(var _name in search_config ){
+        if(_name!= "start_time"&& _name!="end_time")
+        $("select[name=" +_name+"]").val(search_config[_name]);
+        else{
+            $("input[name="+_name+"]").val(search_config[_name]);
+        }
+    }
+
+    var  project_config={{ project_info|safe }};
+    $('#projselect').change(function() {
+                $('select[name="app_name"]').html(project_config[this.value]);
+            })
+    </script>
+
+{% endblock %}

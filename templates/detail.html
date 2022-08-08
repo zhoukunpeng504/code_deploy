@@ -1,0 +1,165 @@
+{% extends "base_pub.html" %}
+
+{% block content %}
+<!-- Content -->
+    {% include "modaldialog.html" %}
+<div class="container main-container">
+<div class="row">
+    <div class="col-md-6">
+        <h3 class="hd">发布详情</h3>
+
+    </div>
+
+</div>
+    <div class="wtable">
+        <table class="table table-striped table-hover table-bordered table-condensed">
+            <!--tr>
+                <th colspan="2">发布详情</th>
+            </tr-->
+            <tr>
+                <th style="width:40%;">选项</th>
+                <th>内容</th>
+            </tr>
+            <tr>
+                <td>项目</td>
+                <td>{{ app.project.name }}</td>
+            </tr>
+            <tr>
+                <td>应用</td>
+                <td><span class="label label-info">  {{ app.name }}</span></td>
+            </tr>
+            <tr>
+                <td>源svn</td>
+                <td><span class="text-info" style="color:#468847">{{ app.source_svn }}</span></td>
+            </tr>
+            <tr>
+                <td>环境</td>
+                <td>{{ publog.environment }}</td>
+            </tr>
+            <tr>
+                <td>动作</td>
+                <td><span class="text-info" style="color:#468847">{{ publog.get_operatedetail }}</span></td>
+            </tr>
+            <!--tr>
+                <td>发布原因</td>
+                <td>{{ publog.reason }}</td>
+            </tr-->
+            <tr>
+                <td>当前状态</td>
+                <td><span  class="label label-info">{{ publog.get_status }}</span><a href="/pub/publog/?pid={{ publog.pk }}" style="padding-left: 20px">查看日志</a></td>
+            </tr>
+
+            <tr>
+                <td>后端web主机</td>
+                <td>
+                    <ol class="unstyled" start="1">
+                    {% if publog.environment == "formal" %}
+                        {% for server in app.formalsshinfo.all %}
+                        <li>{{ server.ip }}:{{ server.ssh_port }} --&gt; {{ app.deploy_to }}</li>
+                        {% endfor %}
+                    {% elif publog.environment == "test" %}
+                        {% for server in app.testsshinfo.all %}
+                        <li>{{ server.ip }}:{{ server.ssh_port }} --&gt; {{ app.deploy_to }}</li>
+                        {% endfor %}
+
+                    {% endif %}
+
+
+
+                    </ol>
+                </td>
+            </tr>
+            <tr>
+                <td>操作人</td>
+                <td>{{ publog.name }}</td>
+            </tr>
+            <tr>
+                <td>操作时间</td>
+                <td>{{ publog.get_operate_time }}</td>
+            </tr>
+        {% if publog.environment == "test" %}
+            <tr>
+                <td>审核信息</td>
+                <td><span class="text-success" style="color:#468847">{{ publog.get_vertifyinfo }}</span>{% if request.user.group == "测试" or  request.user.group == "管理员" %}
+                    {% if app.must_verify %}
+                    {% if publog.get_vertifystatus == 1 %}
+
+                        <a class="btn btn-sm btn-danger" role="button" href="#" onclick="vertify({{ publog.get_vertifyid.1 }})">初步审核</a>
+                        <a class="btn btn-sm btn-danger" role="button" href="#" onclick="reject({{ publog.get_vertifyid.1 }})">驳回</a>
+                        {% elif publog.get_vertifystatus == 6 %}
+                        <a class="btn btn-sm btn-danger" role="button" href="#" onclick="finalvertify({{ publog.get_vertifyid.1 }})">最终审核</a>
+                        <a class="btn btn-sm btn-danger" role="button" href="#" onclick="reject({{ publog.get_vertifyid.1 }})">驳回</a>
+                        {% endif %}
+                    {% endif %}
+                    {% endif %}
+                    </td>
+            </tr>
+
+        {% endif %}
+        </table>
+    </div>
+    <table class="table table-bordered">
+        <caption><b>发布原因</b></caption>
+        <tr>
+            <td colspan="2">
+                <pre>{{ publog.reason }}</pre>
+            </td>
+        </tr>
+    </table>
+    {% if publog.status == 3 %}
+    {% if publog.operate == 1  or publog.operate == 2 %}
+    <table class="table table-bordered">
+        <caption><b>本次发布于上次发布之间的差异</b><span class="label label-info">共{{ publog.get_difffile_listlenth }}条</span> </caption>
+        <!--tr>
+            <th><a class="text-info" href="/r/zh.work/5095/5096/diff/">查看所有差异</a></th>
+        </tr-->
+        {% for i in publog.get_difffile_list %}
+        <tr>
+            <td><a class="text-info" href="/pub/filediff/?pid={{ publog.id }}&&filename={{ i }}">{{ i }}</a></td>
+        </tr>
+
+    {% endfor %}
+    {% if publog.get_difffile_listlenth > 15 %}
+          <tr>
+            <td>......</td>
+        </tr>
+        <tr>
+            <td><a class="btn btn-info" href="/pub/alldiff/?pid={{ publog.id }}">查看所有</a></td>
+        </tr>
+
+    {% endif %}
+
+    </table>
+
+    <table class="table table-borderd">
+        <caption><b>svn log日志</b></caption>
+        {% for i in publog.get_logs %}
+        <tr>
+            <td colspan="2">
+        <pre><span class="text-warning">{{ i.version }}</span>|<span class="text-success">{{ i.author }}</span>|{{ i.date }}
+            {{ i.message }}
+        </pre>
+            </td>
+        </tr>
+    {% endfor %}
+    </table>
+{% endif %}
+    {% endif %}
+
+    <!--table class="table table-bordered">
+        <tr>
+            <th align="left">同步信息：</th>
+        </tr>
+        <tr>
+            <td>
+        <pre>
+        {{ publog.operatelog|safe }}
+
+        </pre>
+            </td>
+        </tr>
+    </table-->
+
+</div>
+{% endblock %}
+

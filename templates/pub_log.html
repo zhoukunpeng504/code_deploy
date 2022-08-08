@@ -1,0 +1,404 @@
+{% extends "base_pub.html" %}
+{% block content %}
+    <!-- Content -->
+    <div class="container main-container" style="min-height: 800px">
+        {#{% include "modaldialog.html" %}#}
+        <div class="row">
+            <div class="col-md-6">
+                <h3 class="hd">所有日志</h3>
+            </div>
+                        <div class="col-md-6">
+                <a role="button" class="btn btn-primary" style="float: right;margin-top: 22px" href="/pub/">
+                    应用发布</a>
+
+            </div>
+        </div>
+        <table class="table table-striped table-hover table-bordered table-condensed" id="maintable" style="
+    margin-bottom: 2px;">
+            <div class="row">
+                <div class="col-md-10">
+                    <div class="form-inline" style="padding-bottom: 1px">
+                        <select  name="proj_id" id="proj_id" class="form-control" onchange="project_change(this)"
+                                style="padding-left: 20px;width: 150px;">
+                            <option value="">请选择项目</option> <!--  test-->
+                        </select> &nbsp
+                        <select  name="app_id" id="app_id" class="form-control"
+                                style="padding-left: 20px;width: 180px;">
+                            <option value="">请选择应用</option> <!--  test-->
+                        </select> &nbsp
+                        <button class="btn btn-info" onclick="init_recent_publog(1)">确定</button>
+                        <button class="btn" onclick="reset()">重置</button>
+                    </div>
+                </div>
+            </div>
+{#            <tr>#}
+{#                <th colspan="9">所有应用发布日志</th>#}
+{#            </tr>#}
+
+<tr>
+                <th style="width: 5%">ID</th>
+                <th style="width: 7%">应用</th>
+                <th style="width: 6%">环境</th>
+                <th style="width: 10%">操作人</th>
+                <th style="width: 4%">操作</th>
+                <th style="width: 7%">版本</th>
+                <th style="width: 16%">版本说明</th>
+                <th style="width: 11%">状态</th>
+                <th style="width: 12%">开始时间</th>
+                <th >操作</th>
+            </tr>
+            <tbody id="tbody">
+
+            </tbody>
+
+        </table>
+            <div class="row" style="text-align: center">
+            <ul class="pagination" id="pagi-content">
+                <li class="active"><a href="#">1</a></li>
+                <li><a href="#">2</a></li>
+                <li><a href="#">3</a></li>
+                <li><a href="#">4</a></li>
+                <li><a href="#">5</a></li>
+            </ul>
+        </div>
+
+    </div>
+{% endblock %}
+
+{% block script %}
+    <script>
+
+        function encode_(info){
+  return window.btoa(encodeURIComponent(info))
+ }
+
+ function decode_(info){
+  return decodeURIComponent(window.atob(info))
+ }
+
+    function init_project_list(){
+      simple_post("/project_manage/?action=get_project_list&sort=1",{}, function (res){
+        var item_html = '<option value="">请选择项目</option>'
+        Object.entries(res).forEach(function (item) {
+          var _index = item[0];
+          var item_data = item[1];
+          //console.log(item)
+          var id = item_data['id'];
+          var name = item_data['name'];
+          var app_num = item_data['app_num'];
+          if(app_num){
+                      item_html  += '<option value="'+ id +'">'+ name + '</option>'
+          }
+          //html += get_item_detail_html(item_data);
+                }
+                )
+        jQuery("#proj_id").html(item_html)
+
+      })
+      return true
+
+    }
+
+    function project_change(ele){
+      jQuery("#version-alert-msg").hide();
+      var proj_id = jQuery(ele).val();
+      jQuery("#version").html('<option value="">请选择代码版本</option>');
+      jQuery("#app_id").html('<option value="">请选择应用</option>');
+      simple_post("/app_manage/?action=get_app_list&sort=1",{}, function (res){
+        var item_html = '<option value="">请选择应用</option>'
+        Object.entries(res).forEach(function (item) {
+          var _index = item[0];
+          var item_data = item[1];
+          //console.log(item)
+          var id = item_data['id'];
+          var _proj_id = item_data['proj_id'];
+          var name = item_data['name'];
+          var repo_server_detail = item_data['repo_server_detail']
+          var repo_git_url = item_data['repo_git_url'];
+          var addtime = item_data['addtime'];
+          //html += get_item_detail_html(item_data);
+          if (_proj_id == proj_id){
+                      item_html  += '<option value="'+ id +'" giturl="'+ repo_git_url +'" gitserverid="'+ repo_server_detail.id +'">'+ name + '</option>'
+          }
+                }
+                )
+        jQuery("#app_id").html(item_html)
+
+      })
+      return true
+
+    }
+
+
+    function init_recent_publog(page=1){
+      last_page = page
+      var proj_id = jQuery("#proj_id").val();
+      var app_id = jQuery("#app_id").val();
+      simple_post("/get_recent_publog", {page:page, num:12,proj_id:proj_id, app_id:app_id},
+      function (res){
+        var item_list = res.data;
+        var table_html = '';
+        var pagi_html = '';
+        var page_range = res.page_range;
+        Object.entries(item_list).forEach(function (item) {
+          var item_data = item[1];
+          var app_name = ''
+          if(item_data.app_info){
+            app_name = item_data.app_info.name;
+          }
+
+          var cost_time = item_data.status_uptime - item_data.addtime;
+          var environ = environ_config_dict[item_data.environ_type].name_cn;
+          table_html += ( '<tr>\n' +
+                  '                    <td>'+ item_data.id +'</td>\n' +
+              '                    <td>'+ app_name +'</td>\n' +
+              '                    <td>' + environ + '</td>\n' +
+              '                    <td>'+ item_data.ope_user_name + '</td>\n' +
+                            '                    <td>'+ (item_data.pub_type==0?'发布':'回滚')  + '</td>\n' +
+              '                    <td><span class="label label-default" >'+ item_data.target_version +'</span></td>\n' +
+              '                    <td>'+ item_data.target_version_meta +'</td>\n' +
+              '                    <td>'+ item_data.status_cn + '耗时:' +cost_time + 'S</td>\n' +
+              '                    <td>'+ getDatetime(item_data.addtime *1000) +'</td>\n' +
+              '                    <td><a href="#" onclick="pub_log_detail_dialog('+ item_data.id +')" >查看详情</a> &nbsp;<a href="#" onclick="kill('+ item_data.id +')">强制结束</a> ' +
+              '' +
+               '<a href="#" onclick="re_pub('+ item_data.app_id +",'"+ item_data.target_version + "','"+  encode_(item_data.target_version_meta) +"',"+  item_data.environ_type +')">一键重发</a>\n' +
+              '<a href="#" onclick="roll_back('+ item_data.app_id + ',' + item_data.environ_type +',this)">快速回滚</a> </td>\n' +
+              '\n' +
+              '</td>\n' +
+              '\n' +
+              '                </tr>' )
+        })
+        jQuery('#tbody').html(table_html)
+        Object.entries(page_range).forEach(function (item) {
+        var num = item[1];
+        if (num == page) {
+          pagi_html += '<li class="active" onclick="init_recent_publog(' + num + ')"><a href="#">' + num + '</a></li>'
+        } else {
+          pagi_html += '<li  onclick="init_recent_publog(' + num + ')"><a href="#">' + num + '</a></li>'
+        }
+
+        })
+        jQuery('#pagi-content').html(pagi_html);
+      })
+    }
+
+
+    function pub_log_detail_dialog(pub_id){
+  var timer_handle = 0;
+  var d = dialog({
+    width: 500,
+    height: 500,
+    title:"发布任务" + pub_id,
+    content: '<div class="progress progress-striped">\n' +
+        '    <div class="progress-bar progress-bar-info" role="progressbar"\n' +
+        '         aria-valuenow="60" aria-valuemin="0" aria-valuemax="100"\n' +
+        '         style="width: 0%;" id="progress-bar">\n' +
+        '    </div>\n' +
+        '</div>' +
+        '<div class="row" style="text-align: center" id="progerss-text">当前进度:30%</div>' +
+        '<div class="row">' +
+        '<p>执行日志：</p>' +
+        '<pre id="code-content" style="height: 400px;white-space: pre-wrap;\n' +
+        'word-wrap: break-word;"></pre>' +
+        '</div>',
+    onshow: function(){
+      function update_content(res){
+
+        console.log(res);
+        var progress = res.progress;
+        var status = res.status;
+        var status_cn = res.status_cn;
+        var task_log = res.task_log;
+        jQuery("#code-content").text(task_log);
+        var content_ele = jQuery("#code-content")[0];
+        content_ele.scrollTop = content_ele.scrollHeight;
+        if (status==4 || status==3){
+          clearInterval(timer_handle)
+        }
+        if (status==4){
+          progress = 90
+          jQuery("#progress-bar").attr('class', 'progress-bar progress-bar-danger')
+        }
+
+        jQuery("#progress-bar").attr('style','width:'+ progress +'%')
+        jQuery("#progerss-text").text(status_cn);
+
+      }
+      simple_post("/get_publog_detail",{id:pub_id},update_content)
+      timer_handle = setInterval(function(){
+        simple_post("/get_publog_detail",{id:pub_id},update_content)
+      },3000)  //每隔三秒刷新一次进度
+    },
+    onhide: function (){
+      clearInterval(timer_handle);
+    }
+
+  });
+  d.showModal()
+}
+
+
+function re_pub(app_id, target_version,version_meta, environ_type){
+      //一键重发
+      version_meta = decode_(version_meta);
+      var environment = '';
+      if(environ_type==1){
+        environment = environ_type
+      }
+      else{
+        environment = environ_type
+      }
+      show_ask_msgbox('一键重发', '<div>确定要重发版本' + target_version +'么？<pre>Commit Log：'+ version_meta  +'</pre></div>',
+          function (){
+            simple_post("/pub_code/",
+                 {app_id:app_id,
+                  version:target_version,
+                   'version-meta':version_meta,
+                   environment:environment,
+                   reason:'一键重发'
+                }, function(data){
+              var status = data['status'];
+                var message = data['message'];
+                if (status) {
+                  show_msg("代码发布任务提交成功");
+                  pub_log_detail_dialog(data.data);
+                  init_recent_publog();
+                } else {
+                  show_msg(message);
+                }
+                return false;
+            })
+          }, 600,80)
+    }
+
+
+        function roll_back(app_id, environ_type,ele){
+      var app_name = jQuery(jQuery(ele).parent().parent().children("td")[1]).text()
+      var environ = environ_config_dict[environ_type].name_cn
+      simple_post("/get_app_current_status",
+          {"app_id":app_id, "environment":environ_type},function (res){
+
+        var _content = '<div class="row">' ;
+        if (!res.data.versions.length){
+          _content+= '<p class="col-sm-12">Sorry, 暂无可回滚的代码!</p>'
+        }
+        Object.entries(res.data.versions).forEach(function (item){
+          var _1 = item[1]
+          var a = _1.code_name.split("-")[0]
+
+          var _22 = '<div class="col-sm-12">' +
+                   '<label class="radio-inline">' +
+                        '<input type="radio"  id="roll_version' + _1.ver +'" name="roll_version" value="' + _1.code_name +'"/>'+
+                  _1.ver+ "&nbsp;&nbsp;发布时间：" + (a.slice(0,8) + " " + a.slice(8,10) + ':' + a.slice(10,12)) +
+              '&nbsp;&nbsp;<span class="label label-default">GitLog:' + _1.ver_meta  +'</span></label>' + '' +
+                  '</div>' ;
+          _content += _22;
+        })
+
+
+        _content +='<div class="row " style="padding:20px;overflow-y: auto;overflow-x: hidden;height:440px;width:850px">' +
+            '<div class="col-sm-12" ><h5>各机器代码版本详情：</h5></div>'
+
+        Object.entries(res.data.detail).forEach(function (item){
+            var _1 = item[1];
+            var current_version = _1.current_version;
+            var current_code_name = _1.current_code_name;
+            if (_1.status){
+              if (_1.data.length){
+                // todo 遍历版本 生成列表
+                _content += ('<div class="col-sm-12" style="margin-bottom: 15px"><p>服务器【'+ _1.host +":" +_1.port +'】：</p>')
+                Object.entries(_1.data).forEach(function (_item){
+                  var _2 = _item[1];
+                  var a = _2[1]
+                  _content += '<p><span class="label ' + (current_code_name==_2[3]?'label-primary':'label-default' ) +'">'+ _2[0] +'</span>&nbsp;&nbsp;&nbsp;'+ "&nbsp;&nbsp;发布时间："
+                      + (getDatetime(a*1000)) + (current_code_name==_2[3]?'&nbsp;当前版本✔':'' )+ '</p>'
+
+
+                })
+                _content += '</div>'
+              }else{
+                _content += ('<div class="col-sm-12" style="margin-bottom: 15px"> <p style="margin-bottom: 0px">服务器【'+ _1.host +":" +_1.port +'】：</p>' +
+                '<span class="label label-danger">暂无代码发布记录！</span>' +
+                '</div>')
+              }
+
+            }
+            else {
+               _content += ('<div class="col-sm-12" style="margin-bottom: 15px"> <p style="margin-bottom: 0px">服务器【'+ _1.host +":" +_1.port +'】：</p>' +
+                '<span class="label label-danger">获取失败！'+ _1.message +'</span>' +
+                '</div>')
+            }
+
+
+        });
+         _content +=   '</div>' + '</div>';
+
+            var d = dialog({
+              width: 800,
+              height:500,
+              title:'[应用：'+ app_name+ '--' + environ +']选择回滚目标版本',
+              okValue: '开始回滚',
+              ok: res.data.versions.length ? function (res){
+                console.log("ok....")
+                // 确定回滚
+                var version = jQuery("[name=roll_version]:checked").val();
+                if(!version){
+                  show_msg('请选择要回滚的目标版本！')
+                }
+                else {
+                  var version_meta = jQuery("[name=roll_version]:checked").parent().children("span").text().slice(7);
+                  console.log("version_meta", version_meta)
+                    simple_post("/rollback_code/", {'version': version,
+                    'version-meta': version_meta,
+                      'environment': environ_type,
+                      'app_id': app_id
+                    }, function (res){
+                      var status = res.status;
+                      var msg = res.message;
+                      var data = res.data;
+                      if (!status){
+                        show_msg(msg)
+                      }
+                      else
+                      {
+                        var task_id = data;
+                        d.close().remove();
+                        pub_log_detail_dialog(task_id, 1);
+                        init_recent_publog()
+                      }
+                    })
+
+                }
+
+              }:null ,
+              cancelValue: '取消',
+              cancel:function (res){
+              },
+              content:_content,
+              onclose: function (){
+              console.log('on close')
+            }
+            });
+            d.showModal()
+          },function (err){},true)
+    }
+
+    function reset(){
+      jQuery("#proj_id").val('');
+      jQuery("#app_id").val('');
+      init_recent_publog(1);
+    }
+
+
+
+    $(function () {
+            init_project_list();  // 初始化app列表
+            init_recent_publog(); // 初始化最近的发布日志
+          }
+      )
+
+
+
+    </script>
+{% endblock %}
+

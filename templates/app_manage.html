@@ -1,0 +1,927 @@
+{% extends "base.html" %}
+
+{% block style %}
+    <style>
+        html, body {
+            height: 100%;
+        }
+
+        body {
+            background: #f7f7f7;
+        }
+
+        .main-container {
+            padding-top: 60px;
+            font-family: "microsoft yahei", arial, sans serif;
+            background: #fff;
+            min-height: 100%;
+            box-sizing: border-box;
+        }
+
+        .hd {
+            padding: 6px 0 6px 10px;
+            border-left: 2px solid #337ab7;
+            margin-bottom: 20px;
+        }
+    </style>
+{% endblock %}
+{% block content %}
+
+    <div class="container main-container" style="min-height: 800px">
+        <div class="row">
+            <div class="col-md-6">
+                <h3 class="hd">应用管理
+                </h3>
+            </div>
+            {% if request.user.is_superuser %}
+            <div class="col-md-1" style="float: right;padding-top: 24px;margin-right: 22px">
+                <button type="button" class="btn btn-info" onclick="add_app()">添加应用</button>
+            </div>
+            {% endif %}
+        </div>
+        {% if not request.user.is_superuser %}
+            <div class="row" style="padding-top: 10px">
+            <div class="alert alert-info">
+                当前用于无权限访问此页面！
+            </div>
+            </div>
+        {% else %}
+        <div class="row">
+            <div class="alert alert-info" style="margin-left: 20px;margin-right: 20px">
+                在本页面管理你的应用。
+            </div>
+        </div>
+        <table align="center" class="table table-bordered">
+            <colgroup>
+                <col style="width:3%;">
+                <col style="width:12%;">
+                <col style="width:25%;">
+                <col style="width:31%;">
+                <col style="width:15%;">
+                <col style="width:14%;">
+            </colgroup>
+            <tr>
+                <th>ID</th>
+                <th>应用名</th>
+                <th>所属项目</th>
+                <th>代码仓库</th>
+                <th>创建时间</th>
+                <th>操作</th>
+            </tr>
+            <tbody id="tbody-main">
+
+
+            </tbody>
+
+
+        </table>
+        {% endif %}
+
+    </div>
+
+{% endblock %}
+{% if not request.user.is_superuser %}
+{% block script %}
+    <script>
+    try{
+    "".replaceAll('',"")
+}catch{
+    String.prototype.replaceAll=function(replaceStr,newStr){
+        return this.replace(new RegExp(replaceStr,'gm'),newStr)
+    }}
+
+    var help_test = '使用说明： 代码路径是用于存放发布的代码的位置。如：/data/code/helloworld ；' +
+              '历史代码版本数建议设为3-10内的值；<br/>' +
+        'Before-Cmd &nbsp; 是开始向各个机器分发代码前执行的命令，每次发布只执行一次，在发布机上执行。<br/>' +
+        'Build-Cmd &nbsp; 是代码分发到各服务器后启动应用的命令, 每次发布在每台目标机器都会执行一次； <br/>' +
+        'Run-Cmd &nbsp;  是代码发布到各服务器后启动应用的命令, 每次发布在每台目标机器都会执行一次；<br/>' +
+        'Success-Cmd &nbsp; 是各台机器均成功执行Run-Cmd后执行的代码，每次发布执行一次'
+
+      function repo_server_change(ele){
+        var val = jQuery(ele).val();
+        if (val =='' || val =="0"){
+            jQuery("#repo_git_url").html('      <option value="">选择代码仓库</option>\n')
+        }
+        show_msg('正在获取Git仓库信息')
+        simple_get("/get_gitserver_repos?gitserver_id=" + val, function(res){
+          var status = res['status'];
+          var data = res['data'];
+          show_msg('获取成功')
+          var _html = '      <option value="">选择代码仓库</option>\n';
+          Object.entries(data).forEach(function (item) {
+            var url = item[1].url;
+            var id = item[1].id;
+            console.log(url)
+            _html += ('      <option aaa="xxxx" value="'+ url+'|' + id +'">'+ url +'</option>\n' )
+          })
+          jQuery("#repo_git_url").html(_html)
+        }, function (res){
+          //console.log(res)
+          show_msg('获取失败' + res.status)
+          jQuery("#repo_git_url").html('      <option value="">选择代码仓库</option>\n')
+        })
+      }
+
+      function add_app() {
+        var d = dialog({
+          title: "添加应用",
+          width: '980px',
+          height:"600px",
+          padding:'18px',
+          ok: function () {
+            jQuery("#app_add").ajaxSubmit({
+              dataType: 'json',
+              success: function sss(data, textStatus, jqXHR, $form) {
+                var status = data['status'];
+                var message = data['message'];
+                if (status) {
+                  show_msg("提交成功");
+                  $form.resetForm();
+                  d.close().remove()
+                } else {
+                  show_msg(message);
+                }
+                init_list()
+                return false;
+              },
+              error: function (a) {
+                init_list()
+                show_msg("提交失败！无服务暂时无法连接")
+              }
+            })
+            return false
+          },
+          onshow: function(){
+            //获取所有的服务器
+            simple_post("/server_manage/?action=get_server_list", {},function (res){
+              var server_select_html = ''
+              res.sort(function (a,b){return a.ip.replace(new RegExp("[.]",'gm'),'') - b.ip.replace(new RegExp("[.]",'gm'),'')})
+              Object.entries(res).forEach(function (item) {
+                var _index = item[0];
+                var data = item[1];
+                var id = data['id'];
+                var ip = data['ip'];
+                var name = data['name'];
+                server_select_html += ('      <option value="'+ id +'">' + name + "--" + ip + '</option>\n' )
+                }
+              )
+              jQuery("#server_ids_1").html(server_select_html);
+              jQuery("#server_ids_2").html(server_select_html);
+              jQuery("#server_ids_3").html(server_select_html);
+              jQuery("#server_ids_4").html(server_select_html);
+            })
+
+            //获取所有的项目
+            simple_post("/project_manage/?action=get_project_list", {},function (res){
+              var server_select_html = ''
+              //res.sort(function (a,b){return a.ip.replace(new RegExp("[.]",'gm'),'') - b.ip.replace(new RegExp("[.]",'gm'),'')})
+              res.reverse();
+              Object.entries(res).forEach(function (item) {
+                var _index = item[0];
+                var data = item[1];
+                var id = data['id'];
+                var name = data['name'];
+                server_select_html += ('      <option value="'+ id +'">' + name + '</option>\n' )
+                }
+              )
+              jQuery("#proj_id").html(server_select_html);
+            })
+
+            //
+            simple_post("/reposerver_manage/?action=get_reposerver_list",{}, function(res){
+              var reposerver_select_html = ''
+              Object.entries(res).forEach(function (item) {
+                var _index = item[0];
+                var data = item[1];
+                var id = data['id'];
+                var repo_type_cn = ''
+                var repo_type = data['repo_type'];
+                if (repo_type == 1){
+                  repo_type_cn = 'Gitlab'
+                }
+                else {
+                  repo_type_cn = 'Gitee'
+                }
+                var repo_name = data['repo_name'];
+                var server_url = data['server_url'];
+                reposerver_select_html += ('      <option value="'+ id +'">' + repo_type_cn + "-" + repo_name + "-" + server_url + '</option>\n' )
+                }
+              )
+              jQuery("#repo_server_id").append(reposerver_select_html);
+              //jQuery("#formal_server_ids").html(server_select_html);
+            })
+
+          },
+          cancel: true,
+          cancelValue: "取消",
+          okValue: "确定",
+          content: '<div class="alert alert-info" xmlns="http://www.w3.org/1999/html" style="\n' +
+              '    margin-bottom: 5px;scroll-behavior: auto\n ">' +
+              help_test +
+              '</div>' +
+              '<form class="form-horizontal" style="overflow-y: auto;overflow-x: hidden;height:calc(100% - 140px)" role="form" action="?action=add_app"  method="post" id="app_add">\n' +
+              '          <div class="form-group">\n' +
+              '      <label for="oldpwd" class="col-sm-1 control-label ">名称：</label>\n' +
+              '      <div class="col-sm-4">\n' +
+              '         <input type="text" class="form-control" id="name"  style="width:210px" name="name"\n' +
+              '            placeholder="请输入应用名称"  required>\n' +
+              '      </div>\n' +
+                '      <label for="oldpwd" class="col-sm-2 control-label ">所属项目：</label>\n' +
+              '      <div class="col-sm-3" style="">\n' +
+              '    <select  class="form-control"  name="proj_id" id="proj_id">\n' +
+              '      <option value="0">选择所属项目</option>\n' +
+              '    </select>' +
+
+              '      </div>\n</div>' +
+                  '           <div class="form-group">\n     ' +
+              '<label for="oldpwd" class="col-sm-1 control-label ">代码仓库：</label>\n' +
+              '      <div class="col-sm-3" style="padding-right:2px; ">\n' +
+              '    <select  class="form-control" onchange="repo_server_change(this)" name="repo_server_id" id="repo_server_id">\n' +
+              '      <option value="0">选择Git服务器</option>\n' +
+              '    </select>' +
+
+              '      </div>\n' +
+                  '      <div class="col-sm-3"  style="padding-left:1px;padding-right:3px ">\n' +
+              '    <select  class="form-control"  name="repo_git_url" id="repo_git_url">\n' +
+              '      <option value="">选择代码仓库</option>\n' +
+              '    </select>' +
+              '      </div>\n' +
+              '   </div>\n' +
+              '\n' +
+
+              '          <div class="form-group">\n' +
+              '      <label for="oldpwd" class="col-sm-1 control-label ">代码路径：</label>\n' +
+              '      <div class="col-sm-4">\n' +
+              '         <input type="text" class="form-control" id="deploy_to"  style="width:100%" name="deploy_to"\n' +
+              '            placeholder="请输入目标路径"  required>\n' +
+              '      </div>\n' +
+                  '      <label for="oldpwd" class="col-sm-2 control-label ">分支及历史代码版本数：</label>\n' +
+              '<div class="col-sm-3">' +
+               '         <input style="width:100%" type="text" class="form-control" id="branch_name"  style="width:100px" name="branch_name"\n' +
+              '            placeholder="请输入分支名"  value="" required>\n' +
+              '</div>'+
+              '      <div class="col-sm-2">\n' +
+              '         <input type="number" class="form-control" id="old_version_num"  style="width:100px" name="old_version_num"\n' +
+              '            placeholder="请输入"  value="3" required>\n' +
+              '      </div>\n' +
+              '   </div>\n' +
+              '\n' +
+
+              {% for i in request.environ_config %}
+                  '<div class="col-sm-6">' +
+              '                          <div class="row form-group">' +
+              '      <label for="oldpwd" class="col-sm-2 control-label ">{{ i.name_cn }}：</label>\n' +
+              '      <div class="col-sm-10">\n' +
+              '<select multiple class="form-control" style="height: 110px" name="server_ids_{{ i.id }}" id="server_ids_{{ i.id }}">\n' +
+              '    </select>' +
+              '</div></div>' +
+              '<div class="row form-group">' +
+                            '      <label for="oldpwd" class="col-sm-2 control-label ">Before-Cmd：</label>\n' +
+              '      <div class="col-sm-10">\n' +
+              '         <textarea type="text" class="form-control" id="cmd_before_deploy_{{ i.id }}"  style="width:100%;height: 70px;" name="cmd_before_deploy_{{ i.id }}"\n' +
+              '            ></textarea>\n' +
+              '      </div>\n' +
+              '</div>' +
+              '<div class="row form-group">' +
+              '      <label for="oldpwd" class="col-sm-2 control-label ">Build-Cmd：</label>\n' +
+              '      <div class="col-sm-10">\n' +
+              '         <textarea type="text" class="form-control" id="cmd_build_app_{{ i.id }}"  style="width:100%;height: 70px;" name="cmd_build_app_{{ i.id }}"\n' +
+              '            ></textarea>\n' +
+              '      </div>\n' +
+              '</div>' +
+
+              '<div class="row form-group">' +
+                             '      <label for="oldpwd" class="col-sm-2 control-label ">Start-Cmd：</label>\n' +
+              '      <div class="col-sm-10">\n' +
+              '         <textarea type="text" class="form-control" id="cmd_start_app_{{ i.id }}"  style="width:100%;height: 70px;" name="cmd_start_app_{{ i.id }}"\n' +
+              '            ></textarea>\n' +
+              '      </div>\n' +
+              '</div>' +
+
+              '<div class="row form-group">' +
+              '      <label for="oldpwd" class="col-sm-2 control-label ">Success-Cmd：</label>\n' +
+              '      <div class="col-sm-10">\n' +
+              '         <textarea type="text" class="form-control" id="success_after_deploy_{{ i.id }}"  ' +
+              'style="width:100%;height: 70px;" name="success_after_deploy_{{ i.id }}"\n' +
+              '            placeholder=""  ></textarea> \n' +
+              '      </div>\n' +
+              '</div>' +
+              '      </div>\n' +
+              {% endfor %}
+              '</form>'
+        });
+        d.showModal();
+
+      }
+
+      function init_list() {
+        jQuery.ajax(
+            {
+              type: 'POST',
+              url: '?action=get_app_list',
+              success: function (res) {
+                var html = '';
+                Object.entries(res).forEach(function (item) {
+                      var _index = item[0];
+                      var item_data = item[1];
+                      //console.log(item)
+                      var id = item_data['id'];
+                      var name = item_data['name'];
+                      var project = item_data['project'];
+                      var repo_server_detail = item_data['repo_server_detail']
+                      var repo_git_url = item_data['repo_git_url'];
+
+                      var addtime = item_data['addtime'];
+
+                      //html += get_item_detail_html(item_data);
+                      var item_html = '<tr>\n' +
+                          '                    <td>' + id + '</td>\n' +
+                          '                    <td>' + name + '</td>\n' +
+                          '                    <td>' + project.name + '</td>\n' +
+                                                        '                    <td> <label class="label label-primary">' + repo_git_url + '</label></td>\n' +
+
+                               '                    <td>' + getDatetime(addtime*1000) + '</td>\n' +
+                          '\n' +
+
+  '                    <td>\n' +
+                          '                        <a href="#" style="padding-left: 5px" onclick="del_app(' + id + ')">删除</a>\n' +
+                          '                        <a href="#" style="padding-left: 5px" onclick="update_app(' + id + ')">修改</a>\n' +
+                              '                        <a href="#" style="padding-left: 5px" onclick="clone_app(' + id + ')">拷贝</a>\n' +
+
+                          '                    </td>\n' +
+                          '\n' +
+                          '                </tr>'
+                      html += item_html;
+                    }
+                )
+                //console.log(html);
+                jQuery("#tbody-main").html(html);
+
+              },
+              dataType: 'json'
+            }
+        )
+
+
+      }
+
+      function update_app(id) {
+        simple_post("?action=get_app",{id:id}, function(res){
+          var data = res.data;
+          var status = res.status;
+          var repo_server_id = data.repo_server_id;
+          var server_ids_1 = data['server_ids_1'];
+          var server_ids_2 = data['server_ids_2'];
+          var server_ids_3 = data['server_ids_3'];
+          var server_ids_4 = data['server_ids_4'];
+          var repo_git_url = data.repo_git_url;
+          var repo_id = data.repo_id;
+          var name = data.name;
+          var deploy_to = data.deploy_to;
+          var old_version_num = data.old_version_num;
+          {% for i in request.environ_config %}
+          var cmd_before_deploy_{{ i.id }} = data.cmd_before_deploy_{{ i.id }};
+          var cmd_build_app_{{ i.id }} = data.cmd_build_app_{{ i.id }};
+          var cmd_start_app_{{ i.id }} = data.cmd_start_app_{{ i.id }};
+          var success_after_deploy_{{ i.id }} = data.success_after_deploy_{{ i.id }};
+          {% endfor %}
+          var code_tar_gz_path = data.code_tar_gz_path;
+          var branch_name = data.branch_name;
+          var proj_id = data.proj_id;
+
+          if(!status){
+            show_msg(res.message);
+            init_list()
+          }
+          else{
+            var d = dialog({
+          title: "修改应用",
+          width: '980px',
+              height:"600px",
+          padding:'18px',
+          ok: function () {
+            jQuery("#update_add").ajaxSubmit({
+              dataType: 'json',
+              success: function sss(data, textStatus, jqXHR, $form) {
+                var status = data['status'];
+                var message = data['message'];
+                if (status) {
+                  show_msg("提交成功");
+                  $form.resetForm();
+                  d.close().remove()
+                } else {
+                  show_msg(message);
+                }
+                init_list()
+                return false;
+              },
+              error: function (a) {
+                init_list()
+                show_msg("提交失败！无服务暂时无法连接")
+              }
+            })
+            return false
+          },
+          onshow: function(){
+            //
+            jQuery("#name").val(name);
+            jQuery("#deploy_to").val(deploy_to);
+            jQuery("#old_version_num").val(old_version_num);
+            {% for i in request.environ_config %}
+              jQuery("#cmd_before_deploy_{{ i.id }}").val(cmd_before_deploy_{{ i.id }});
+            jQuery("#cmd_start_app_{{ i.id }}").val(cmd_start_app_{{ i.id }});
+            jQuery("#success_after_deploy_{{ i.id }}").val(success_after_deploy_{{ i.id }});
+            jQuery("#cmd_build_app_{{ i.id }}").val(cmd_build_app_{{ i.id }});
+            {% endfor %}
+            jQuery("#code_tar_gz_path").val(code_tar_gz_path);
+            jQuery("#branch_name").val(branch_name);
+
+            simple_post("/server_manage/?action=get_server_list", {},function (res){
+              var server_select_html = ''
+              res.sort(function (a,b){return a.ip.replace(new RegExp("[.]",'gm'),'') - b.ip.replace(new RegExp("[.]",'gm'),'')})
+              Object.entries(res).forEach(function (item) {
+                var _index = item[0];
+                var data = item[1];
+                var id = data['id'];
+                var ip = data['ip'];
+                var name = data['name'];
+                server_select_html += ('      <option value="'+ id +'">' + name + "--" + ip + '</option>\n' )
+                }
+              )
+              jQuery("#server_ids_1").html(server_select_html);
+              jQuery("#server_ids_2").html(server_select_html);
+              jQuery("#server_ids_3").html(server_select_html);
+              jQuery("#server_ids_4").html(server_select_html);
+              {% for i in request.environ_config %}
+              jQuery("#server_ids_{{ i.id }}").val(server_ids_{{ i.id }}.split(','))
+              {% endfor %}
+            })
+
+            //获取所有的项目
+            simple_post("/project_manage/?action=get_project_list", {},function (res){
+              var server_select_html = ''
+              //res.sort(function (a,b){return a.ip.replace(new RegExp("[.]",'gm'),'') - b.ip.replace(new RegExp("[.]",'gm'),'')})
+              res.reverse();
+              Object.entries(res).forEach(function (item) {
+                var _index = item[0];
+                var data = item[1];
+                var id = data['id'];
+                var name = data['name'];
+                server_select_html += ('      <option value="'+ id +'">' + name + '</option>\n' )
+                }
+              )
+              jQuery("#proj_id").html(server_select_html);
+              jQuery("#proj_id").val(proj_id);
+            })
+
+            //
+            simple_post("/reposerver_manage/?action=get_reposerver_list",{}, function(res){
+              var reposerver_select_html = ''
+              Object.entries(res).forEach(function (item) {
+                var _index = item[0];
+                var data = item[1];
+                var id = data['id'];
+                var repo_type_cn = ''
+                var repo_type = data['repo_type'];
+                if (repo_type == 1){
+                  repo_type_cn = 'Gitlab'
+                }
+                else {
+                  repo_type_cn = 'Gitee'
+                }
+                var repo_name = data['repo_name'];
+                var server_url = data['server_url'];
+                reposerver_select_html += ('      <option value="'+ id +'">' + repo_type_cn + "-" + repo_name + "-" + server_url + '</option>\n' )
+                }
+              )
+              jQuery("#repo_server_id").append(reposerver_select_html);
+              //jQuery("#formal_server_ids").html(server_select_html);
+              jQuery("#repo_server_id").val(repo_server_id);
+            })
+            jQuery("#repo_git_url").html('      <option value="'+ repo_git_url + "|" + repo_id +'">'+ repo_git_url+'</option>\n')
+            jQuery("#repo_git_url").val(repo_git_url + "|" + repo_id);
+
+            simple_get("/get_gitserver_repos?gitserver_id=" + repo_server_id, function(res){
+                  var status = res['status'];
+                  var _data = res['data'];
+                  var _html = '      <option value="">选择代码仓库</option>\n';
+                  var mask = false;
+                  Object.entries(_data).forEach(function (item) {
+                    var url = item[1].url;
+                    var id = item[1].id;
+                    if (url==repo_git_url) mask=true;
+                    _html += ('      <option value="'+ url + '|' + id +'">'+ url +'</option>\n' )
+                  })
+                  if(!mask) _html+= ('      <option value="'+ repo_git_url + "|" + repo_id +'">'+ repo_git_url+'</option>\n')
+                  jQuery("#repo_git_url").html(_html)
+                  jQuery("#repo_git_url").val(repo_git_url + "|" + repo_id);
+                }, function (res){
+                  //console.log(res)
+                  //jQuery("#repo_git_url").html('      <option value="">选择代码仓库</option>\n')
+                })
+
+
+          },
+          cancel: true,
+          cancelValue: "取消",
+          okValue: "确定",
+          content: '<div class="alert alert-info" xmlns="http://www.w3.org/1999/html">' +
+             help_test +
+              '</div>' +
+              '<form class="form-horizontal" style="overflow-y: auto;overflow-x: hidden;height:calc(100% - 140px)" role="form" action="?action=update_app"  method="post" id="update_add">\n' +
+                  '<input style="display: none" value="'+ id +'" name="id">' +
+              '          <div class="form-group">\n' +
+              '      <label for="oldpwd" class="col-sm-1 control-label ">名称：</label>\n' +
+              '      <div class="col-sm-4">\n' +
+              '         <input type="text" class="form-control" id="name"  style="width:210px" name="name"\n' +
+              '            placeholder="请输入应用名称"  required>\n' +
+              '      </div>\n' +
+                '      <label for="oldpwd" class="col-sm-2 control-label ">所属项目：</label>\n' +
+              '      <div class="col-sm-3" style="">\n' +
+              '    <select  class="form-control"  name="proj_id" id="proj_id">\n' +
+              '      <option value="0">选择所属项目</option>\n' +
+              '    </select>' +
+
+              '      </div>\n</div>' +
+                  '           <div class="form-group">\n     ' +
+              '<label for="oldpwd" class="col-sm-1 control-label ">代码仓库：</label>\n' +
+              '      <div class="col-sm-3" style="padding-right:2px; ">\n' +
+              '    <select  class="form-control" onchange="repo_server_change(this)" name="repo_server_id" id="repo_server_id">\n' +
+              '      <option value="0">选择Git服务器</option>\n' +
+              '    </select>' +
+
+              '      </div>\n' +
+                  '      <div class="col-sm-3"  style="padding-left:1px;padding-right:3px ">\n' +
+              '    <select  class="form-control"  name="repo_git_url" id="repo_git_url">\n' +
+              '      <option value="">选择代码仓库</option>\n' +
+              '    </select>' +
+              '      </div>\n' +
+              '   </div>\n' +
+              '\n' +
+
+              '          <div class="form-group">\n' +
+              '      <label for="oldpwd" class="col-sm-1 control-label ">代码路径：</label>\n' +
+              '      <div class="col-sm-4">\n' +
+              '         <input type="text" class="form-control" id="deploy_to"  style="width:100%" name="deploy_to"\n' +
+              '            placeholder="请输入目标路径"  required>\n' +
+              '      </div>\n' +
+                                    '      <label for="oldpwd" class="col-sm-2 control-label ">分支及历史代码版本数：</label>\n' +
+              '<div class="col-sm-3">' +
+               '         <input style="width:100%" type="text" class="form-control" id="branch_name"  style="width:100px" name="branch_name"\n' +
+              '            placeholder="请输入分支名"  value="" required>\n' +
+              '</div>'+
+
+              '      <div class="col-sm-2">\n' +
+              '         <input type="number" class="form-control" id="old_version_num"  style="width:100px" name="old_version_num"\n' +
+              '            placeholder="请输入"  value="3" required>\n' +
+              '      </div>\n' +
+              '   </div>\n' +
+              '\n' +
+
+
+
+                 {% for i in request.environ_config %}
+                  '<div class="col-sm-6">' +
+              '                          <div class="row form-group">' +
+              '      <label for="oldpwd" class="col-sm-2 control-label ">{{ i.name_cn }}：</label>\n' +
+              '      <div class="col-sm-10">\n' +
+              '<select multiple class="form-control" style="height: 110px" name="server_ids_{{ i.id }}" id="server_ids_{{ i.id }}">\n' +
+              '    </select>' +
+              '</div></div>' +
+              '<div class="row form-group">' +
+                            '      <label for="oldpwd" class="col-sm-2 control-label ">Before-Cmd：</label>\n' +
+              '      <div class="col-sm-10">\n' +
+              '         <textarea type="text" class="form-control" id="cmd_before_deploy_{{ i.id }}"  style="width:100%;height: 70px;" name="cmd_before_deploy_{{ i.id }}"\n' +
+              '            ></textarea>\n' +
+              '      </div>\n' +
+              '</div>' +
+              '<div class="row form-group">' +
+              '      <label for="oldpwd" class="col-sm-2 control-label ">Build-Cmd：</label>\n' +
+              '      <div class="col-sm-10">\n' +
+              '         <textarea type="text" class="form-control" id="cmd_build_app_{{ i.id }}"  style="width:100%;height: 70px;" name="cmd_build_app_{{ i.id }}"\n' +
+              '            ></textarea>\n' +
+              '      </div>\n' +
+              '</div>' +
+
+              '<div class="row form-group">' +
+                             '      <label for="oldpwd" class="col-sm-2 control-label ">Start-Cmd：</label>\n' +
+              '      <div class="col-sm-10">\n' +
+              '         <textarea type="text" class="form-control" id="cmd_start_app_{{ i.id }}"  style="width:100%;height: 70px;" name="cmd_start_app_{{ i.id }}"\n' +
+              '            ></textarea>\n' +
+              '      </div>\n' +
+              '</div>' +
+
+              '<div class="row form-group">' +
+              '      <label for="oldpwd" class="col-sm-2 control-label ">Success-Cmd：</label>\n' +
+              '      <div class="col-sm-10">\n' +
+              '         <textarea type="text" class="form-control" id="success_after_deploy_{{ i.id }}"  ' +
+              'style="width:100%;height: 70px;" name="success_after_deploy_{{ i.id }}"\n' +
+              '            placeholder=""  ></textarea> \n' +
+              '      </div>\n' +
+              '</div>' +
+              '      </div>\n' +
+              {% endfor %}
+
+              '</form>'
+        });
+            d.showModal();
+          }
+
+        })
+
+
+      }
+
+      function del_app(id) {
+        function ok() {
+          jQuery.ajax(
+            {
+              type: 'POST',
+              data: {id: id},
+              dataType: 'json',
+              url: '?action=del_app',
+              success: function (res) {
+                var status = res['status']
+                var message = res['message']
+                show_msg(message);
+                init_list();
+              }
+
+            })
+        }
+        show_ask_msgbox('提醒','确定要删除该应用么？',ok)
+
+
+      }
+
+      function clone_app(id){
+        simple_post("?action=get_app",{id:id}, function(res){
+          var data = res.data;
+          var status = res.status;
+          var repo_server_id = data.repo_server_id;
+          var server_ids_1 = data['server_ids_1'];
+          var server_ids_2 = data['server_ids_2'];
+          var server_ids_3 = data['server_ids_3'];
+          var server_ids_4 = data['server_ids_4'];
+          //var repo_git_url = data.repo_git_url;
+          var name = data.name;
+          var deploy_to = data.deploy_to;
+          var old_version_num = data.old_version_num;
+          {% for i in request.environ_config %}
+          var cmd_before_deploy_{{ i.id }} = data.cmd_before_deploy_{{ i.id }};
+          var cmd_build_app_{{ i.id }} = data.cmd_build_app_{{ i.id }};
+          var cmd_start_app_{{ i.id }} = data.cmd_start_app_{{ i.id }};
+          var success_after_deploy_{{ i.id }} = data.success_after_deploy_{{ i.id }};
+          {% endfor %}
+          var code_tar_gz_path = data.code_tar_gz_path;
+          var branch_name = data.branch_name;
+
+          if(!status){
+            show_msg(res.message);
+            init_list()
+          }
+          else{
+            var d = dialog({
+          title: "新增应用",
+          width: '980px',
+              height:"600px",
+          padding:'18px',
+          ok: function () {
+            jQuery("#add_add").ajaxSubmit({
+              dataType: 'json',
+              success: function sss(data, textStatus, jqXHR, $form) {
+                var status = data['status'];
+                var message = data['message'];
+                if (status) {
+                  show_msg("提交成功");
+                  $form.resetForm();
+                  d.close().remove()
+                } else {
+                  show_msg(message);
+                }
+                init_list()
+                return false;
+              },
+              error: function (a) {
+                init_list()
+                show_msg("提交失败！无服务暂时无法连接")
+              }
+            })
+            return false
+          },
+          onshow: function(){
+            //
+            jQuery("#name").val(name+"_copy");
+            jQuery("#deploy_to").val(deploy_to+"_copy");
+            jQuery("#old_version_num").val(old_version_num);
+            {% for i in request.environ_config %}
+              jQuery("#cmd_before_deploy_{{ i.id }}").val(cmd_before_deploy_{{ i.id }});
+            jQuery("#cmd_start_app_{{ i.id }}").val(cmd_start_app_{{ i.id }});
+            jQuery("#success_after_deploy_{{ i.id }}").val(success_after_deploy_{{ i.id }});
+            jQuery("#cmd_build_app_{{ i.id }}").val(cmd_build_app_{{ i.id }});
+            {% endfor %}
+            jQuery("#code_tar_gz_path").val(code_tar_gz_path);
+            jQuery("#branch_name").val(branch_name);
+
+            simple_post("/server_manage/?action=get_server_list", {},function (res){
+              var server_select_html = ''
+              res.sort(function (a,b){return a.ip.replaceAll(".","") - b.ip.replaceAll(".","")})
+              Object.entries(res).forEach(function (item) {
+                var _index = item[0];
+                var data = item[1];
+                var id = data['id'];
+                var ip = data['ip'];
+                var name = data['name'];
+                server_select_html += ('      <option value="'+ id +'">' + name + "--" + ip + '</option>\n' )
+                }
+              )
+              jQuery("#server_ids_1").html(server_select_html);
+              jQuery("#server_ids_2").html(server_select_html);
+              jQuery("#server_ids_3").html(server_select_html);
+              jQuery("#server_ids_4").html(server_select_html);
+              {% for i in request.environ_config %}
+              jQuery("#server_ids_{{ i.id }}").val(server_ids_{{ i.id }}.split(','))
+              {% endfor %}
+            })
+            //
+            simple_post("/reposerver_manage/?action=get_reposerver_list",{}, function(res){
+              var reposerver_select_html = ''
+              Object.entries(res).forEach(function (item) {
+                var _index = item[0];
+                var data = item[1];
+                var id = data['id'];
+                var repo_type_cn = ''
+                var repo_type = data['repo_type'];
+                if (repo_type == 1){
+                  repo_type_cn = 'Gitlab'
+                }
+                else {
+                  repo_type_cn = 'Gitee'
+                }
+                var repo_name = data['repo_name'];
+                var server_url = data['server_url'];
+                reposerver_select_html += ('      <option value="'+ id +'">' + repo_type_cn + "-" + repo_name + "-" + server_url + '</option>\n' )
+                }
+              )
+              jQuery("#repo_server_id").append(reposerver_select_html);
+              //jQuery("#formal_server_ids").html(server_select_html);
+              jQuery("#repo_server_id").val(repo_server_id);
+            })
+
+            //获取所有的项目
+            simple_post("/project_manage/?action=get_project_list", {},function (res){
+              var server_select_html = ''
+              //res.sort(function (a,b){return a.ip.replace(new RegExp("[.]",'gm'),'') - b.ip.replace(new RegExp("[.]",'gm'),'')})
+              res.reverse();
+              Object.entries(res).forEach(function (item) {
+                var _index = item[0];
+                var data = item[1];
+                var id = data['id'];
+                var name = data['name'];
+                server_select_html += ('      <option value="'+ id +'">' + name + '</option>\n' )
+                }
+              )
+              jQuery("#proj_id").html(server_select_html);
+            })
+
+            //jQuery("#repo_git_url").html('      <option value="'+ repo_git_url +'">'+ repo_git_url+'</option>\n')
+            // jQuery("#repo_git_url").val(repo_git_url);
+
+            simple_get("/get_gitserver_repos?gitserver_id=" + repo_server_id, function(res){
+                  var status = res['status'];
+                  var _data = res['data'];
+                  var _html = '      <option value="">选择代码仓库</option>\n';
+                  var mask = false;
+                  Object.entries(_data).forEach(function (item) {
+                    var url = item[1].url;
+                    var id = item[1].id;
+                    if (url==repo_git_url) mask=true;
+                    _html += ('      <option value="'+ url + "|" + id  +'">'+ url +'</option>\n' )
+                  })
+                  //if(!mask) _html+= ('      <option value="'+ repo_git_url +'">'+ repo_git_url+'</option>\n')
+                  jQuery("#repo_git_url").html(_html)
+                  //jQuery("#repo_git_url").val(repo_git_url);
+                }, function (res){
+                  //console.log(res)
+                  //jQuery("#repo_git_url").html('      <option value="">选择代码仓库</option>\n')
+                })
+
+
+          },
+          cancel: true,
+          cancelValue: "取消",
+          okValue: "确定",
+          content: '<div class="alert alert-info" xmlns="http://www.w3.org/1999/html">' +
+              help_test +
+              '</div>' +
+              '<form class="form-horizontal" style="overflow-y: auto;overflow-x: hidden;height:calc(100% - 140px)" role="form" action="?action=add_app"  method="post" id="add_add">\n' +
+              '          <div class="form-group">\n' +
+              '      <label for="oldpwd" class="col-sm-1 control-label ">名称：</label>\n' +
+              '      <div class="col-sm-4">\n' +
+              '         <input type="text" class="form-control" id="name"  style="width:210px" name="name"\n' +
+              '            placeholder="请输入应用名称"  required>\n' +
+              '      </div>\n' +
+                  '      <label for="oldpwd" class="col-sm-2 control-label ">所属项目：</label>\n' +
+              '      <div class="col-sm-3" style="">\n' +
+              '    <select  class="form-control"  name="proj_id" id="proj_id">\n' +
+              '      <option value="0">选择所属项目</option>\n' +
+              '    </select>' +
+
+              '      </div>\n</div>' +
+                  '           <div class="form-group">\n     ' +
+              '<label for="oldpwd" class="col-sm-1 control-label ">代码仓库：</label>\n' +
+              '      <div class="col-sm-3" style="padding-right:2px; ">\n' +
+              '    <select  class="form-control" onchange="repo_server_change(this)" name="repo_server_id" id="repo_server_id">\n' +
+              '      <option value="0">选择Git服务器</option>\n' +
+              '    </select>' +
+
+              '      </div>\n' +
+                  '      <div class="col-sm-3"  style="padding-left:1px;padding-right:3px ">\n' +
+              '    <select  class="form-control"  name="repo_git_url" id="repo_git_url">\n' +
+              '      <option value="">选择代码仓库</option>\n' +
+              '    </select>' +
+              '      </div>\n' +
+              '   </div>\n' +
+              '\n' +
+
+              '          <div class="form-group">\n' +
+              '      <label for="oldpwd" class="col-sm-1 control-label ">代码路径：</label>\n' +
+              '      <div class="col-sm-4">\n' +
+              '         <input type="text" class="form-control" id="deploy_to"  style="width:100%" name="deploy_to"\n' +
+              '            placeholder="请输入目标路径"  required>\n' +
+              '      </div>\n' +
+              '      <label for="oldpwd" class="col-sm-2 control-label ">分支及历史代码版本数：</label>\n' +
+              '<div class="col-sm-3">' +
+               '         <input style="width:100%" type="text" class="form-control" id="branch_name"  style="width:100px" name="branch_name"\n' +
+              '            placeholder="请输入分支名"  value="" required>\n' +
+              '</div>'+
+              '      <div class="col-sm-2">\n' +
+              '         <input type="number" class="form-control" id="old_version_num"  style="width:100px" name="old_version_num"\n' +
+              '            placeholder="请输入"  value="3" required>\n' +
+              '      </div>\n' +
+              '   </div>\n' +
+              '\n' +
+
+
+
+                  {% for i in request.environ_config %}
+                  '<div class="col-sm-6">' +
+              '                          <div class="row form-group">' +
+              '      <label for="oldpwd" class="col-sm-2 control-label ">{{ i.name_cn }}：</label>\n' +
+              '      <div class="col-sm-10">\n' +
+              '<select multiple class="form-control" style="height: 110px" name="server_ids_{{ i.id }}" id="server_ids_{{ i.id }}">\n' +
+              '    </select>' +
+              '</div></div>' +
+              '<div class="row form-group">' +
+                            '      <label for="oldpwd" class="col-sm-2 control-label ">Before-Cmd：</label>\n' +
+              '      <div class="col-sm-10">\n' +
+              '         <textarea type="text" class="form-control" id="cmd_before_deploy_{{ i.id }}"  style="width:100%;height: 70px;" name="cmd_before_deploy_{{ i.id }}"\n' +
+              '            ></textarea>\n' +
+              '      </div>\n' +
+              '</div>' +
+              '<div class="row form-group">' +
+              '      <label for="oldpwd" class="col-sm-2 control-label ">Build-Cmd：</label>\n' +
+              '      <div class="col-sm-10">\n' +
+              '         <textarea type="text" class="form-control" id="cmd_build_app_{{ i.id }}"  style="width:100%;height: 70px;" name="cmd_build_app_{{ i.id }}"\n' +
+              '            ></textarea>\n' +
+              '      </div>\n' +
+              '</div>' +
+
+              '<div class="row form-group">' +
+                             '      <label for="oldpwd" class="col-sm-2 control-label ">Start-Cmd：</label>\n' +
+              '      <div class="col-sm-10">\n' +
+              '         <textarea type="text" class="form-control" id="cmd_start_app_{{ i.id }}"  style="width:100%;height: 70px;" name="cmd_start_app_{{ i.id }}"\n' +
+              '            ></textarea>\n' +
+              '      </div>\n' +
+              '</div>' +
+
+              '<div class="row form-group">' +
+              '      <label for="oldpwd" class="col-sm-2 control-label ">Success-Cmd：</label>\n' +
+              '      <div class="col-sm-10">\n' +
+              '         <textarea type="text" class="form-control" id="success_after_deploy_{{ i.id }}"  ' +
+              'style="width:100%;height: 70px;" name="success_after_deploy_{{ i.id }}"\n' +
+              '            placeholder=""  ></textarea> \n' +
+              '      </div>\n' +
+              '</div>' +
+              '      </div>\n' +
+              {% endfor %}
+
+              '</form>'
+        });
+            d.showModal();
+          }
+
+        })
+
+      }
+
+
+      $(function () {
+            init_list(); //初始化列表
+
+          }
+      )
+    </script>
+
+{% endblock %}
+{% endif %}
