@@ -46,35 +46,29 @@
             </div>
             </div>
         {% else %}
-        <div class="row">
-            <div class="alert alert-info" style="margin-left: 20px;margin-right: 20px">
-                在本页面管理你的应用。
-            </div>
-        </div>
+
         <table align="center" class="table table-bordered">
-            <colgroup>
-                <col style="width:3%;">
-                <col style="width:12%;">
-                <col style="width:25%;">
-                <col style="width:31%;">
-                <col style="width:15%;">
-                <col style="width:14%;">
-            </colgroup>
-            <tr>
-                <th>ID</th>
-                <th>应用名</th>
-                <th>所属项目</th>
-                <th>代码仓库</th>
-                <th>创建时间</th>
-                <th>操作</th>
-            </tr>
-            <tbody id="tbody-main">
+    <colgroup>
+        <col style="width:3%;">
+        <col style="width:12%;">
+        <col style="width:25%;">
+        <col style="width:31%;">
+        <col style="width:15%;">
+        <col style="width:14%;">
+    </colgroup>
+    <tr>
+        <th>ID</th>
+        <th>应用名</th>
+        <th>所属项目</th>
+        <th>代码仓库</th>
+        <th>创建时间</th>
+        <th>操作</th>
+    </tr>
+    <tbody id="tbody-main">
+    </tbody>
+</table>
 
 
-            </tbody>
-
-
-        </table>
         {% endif %}
 
     </div>
@@ -321,6 +315,17 @@
               url: '?action=get_app_list',
               success: function (res) {
                 var html = '';
+                res.sort(function (a,b){
+                  console.log(a.project.name, b.project.name)
+                  if(a.project.name ==  b.project.name){
+                    return a.id < b.id? 1: -1
+                  }
+                  else
+                  {
+                    return a.project.name > b.project.name ? 1: -1
+                  }
+                })
+                console.log(res)
                 Object.entries(res).forEach(function (item) {
                       var _index = item[0];
                       var item_data = item[1];
