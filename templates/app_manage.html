@@ -48,6 +48,18 @@
         {% else %}
 
         <table align="center" class="table table-bordered">
+                    <div class="row" style="padding-bottom: 5px">
+                <div class="col-md-10">
+                    <div class="form-inline" style="padding-bottom: 1px">
+                        <select  name="proj_id" id="proj_id" class="form-control"
+                                style="padding-left: 20px;width: 150px;">
+                            <option value="">所有项目</option> <!--  test-->
+                        </select> &nbsp
+                        <button class="btn btn-info" onclick="init_list()">确定</button>
+                        <button class="btn" onclick="reset()">重置</button>
+                    </div>
+                </div>
+            </div>
     <colgroup>
         <col style="width:3%;">
         <col style="width:12%;">
@@ -90,6 +102,29 @@
         'Build-Cmd &nbsp; 是代码分发到各服务器后启动应用的命令, 每次发布在每台目标机器都会执行一次； <br/>' +
         'Run-Cmd &nbsp;  是代码发布到各服务器后启动应用的命令, 每次发布在每台目标机器都会执行一次；<br/>' +
         'Success-Cmd &nbsp; 是各台机器均成功执行Run-Cmd后执行的代码，每次发布执行一次'
+
+        function init_project_list(){
+      simple_post("/project_manage/?action=get_project_list&sort=1",{}, function (res){
+        var item_html = '<option value="">所有项目</option>'
+        Object.entries(res).forEach(function (item) {
+          var _index = item[0];
+          var item_data = item[1];
+          //console.log(item)
+          var id = item_data['id'];
+          var name = item_data['name'];
+          var app_num = item_data['app_num'];
+          if(app_num){
+                      item_html  += '<option value="'+ id +'">'+ name + '</option>'
+          }
+          //html += get_item_detail_html(item_data);
+                }
+                )
+        jQuery("#proj_id").html(item_html)
+
+      })
+      return true
+
+    }
 
       function repo_server_change(ele){
         var val = jQuery(ele).val();
@@ -309,6 +344,7 @@
       }
 
       function init_list() {
+      var proj_filter = jQuery("#proj_id").val()
         jQuery.ajax(
             {
               type: 'POST',
@@ -327,8 +363,12 @@
                 })
                 //console.log(res)
                 Object.entries(res).forEach(function (item) {
-                      var _index = item[0];
                       var item_data = item[1];
+                      if (proj_filter && item_data.project.id != proj_filter){
+                        return
+                      }
+                      var _index = item[0];
+
                       //console.log(item)
                       var id = item_data['id'];
                       var name = item_data['name'];
@@ -920,8 +960,13 @@
 
       }
 
+    function reset(){
+      jQuery("#proj_id").val('');
+      init_list();
+    }
 
       $(function () {
+        init_project_list()
             init_list(); //初始化列表
 
           }
