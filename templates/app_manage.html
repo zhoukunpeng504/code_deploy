@@ -316,7 +316,7 @@
               success: function (res) {
                 var html = '';
                 res.sort(function (a,b){
-                  console.log(a.project.name, b.project.name)
+                  //console.log(a.project.name, b.project.name)
                   if(a.project.name ==  b.project.name){
                     return a.id < b.id? 1: -1
                   }
@@ -325,7 +325,7 @@
                     return a.project.name > b.project.name ? 1: -1
                   }
                 })
-                console.log(res)
+                //console.log(res)
                 Object.entries(res).forEach(function (item) {
                       var _index = item[0];
                       var item_data = item[1];
