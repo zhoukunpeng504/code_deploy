@@ -51,7 +51,7 @@
                     <div class="row" style="padding-bottom: 5px">
                 <div class="col-md-10">
                     <div class="form-inline" style="padding-bottom: 1px">
-                        <select  name="proj_id" id="proj_id" class="form-control"
+                        <select  name="proj_id_filter" id="proj_id_filter" class="form-control"
                                 style="padding-left: 20px;width: 150px;">
                             <option value="">所有项目</option> <!--  test-->
                         </select> &nbsp
@@ -119,7 +119,7 @@
           //html += get_item_detail_html(item_data);
                 }
                 )
-        jQuery("#proj_id").html(item_html)
+        jQuery("#proj_id_filter").html(item_html)
 
       })
       return true
@@ -344,7 +344,7 @@
       }
 
       function init_list() {
-      var proj_filter = jQuery("#proj_id").val()
+      var proj_filter = jQuery("#proj_id_filter").val()
         jQuery.ajax(
             {
               type: 'POST',
@@ -961,7 +961,7 @@
       }
 
     function reset(){
-      jQuery("#proj_id").val('');
+      jQuery("#proj_id_filter").val('');
       init_list();
     }
 
